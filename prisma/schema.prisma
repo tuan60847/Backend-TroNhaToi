@@ -1,0 +1,284 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+generator seed {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model LoaiPhong {
+  maLoaiPhong  Int      @id @default(autoincrement())
+  tenLoaiPhong String   @db.VarChar(255)
+  dienTich     Float?   @db.Float
+  isMayLanh    Boolean?
+  soNguoiToiDa Int?
+  giaTien      Decimal? @db.Decimal(10, 2)
+  isDelete     Boolean  @default(false)
+  phong        Phong[]
+
+  @@map("loaiphong")
+}
+
+model Phong {
+  phongId            Int                  @id @default(autoincrement()) @map("PhongID")
+  tenPhong           String?              @db.VarChar(255)
+  trangThai          String?              @db.VarChar(100)
+  moTa               String?              @db.Text
+  maLoaiPhong        Int?
+  isDelete           Boolean              @default(false)
+  dienNuoc           DienNuoc[]
+  loaiPhong          LoaiPhong?           @relation(fields: [maLoaiPhong], references: [maLoaiPhong], onDelete: NoAction, onUpdate: NoAction, map: "phong_ibfk_1")
+  HopDong            HopDong[]
+  LapRap             LapRap[]
+  SuaChua            SuaChua[]
+  NguoiLuuTruTamThoi NguoiLuuTruTamThoi[]
+
+  @@index([maLoaiPhong], map: "maLoaiPhong")
+  @@map("phong")
+}
+
+model NguoiThue {
+  idnt               Int                  @id @default(autoincrement()) @map("IDNT")
+  cccd               String?              @map("CCCD") @db.VarChar(50)
+  hoTen              String?              @db.VarChar(255)
+  ngaySinh           DateTime?            @db.Date
+  sdt                String?              @map("SDT") @db.VarChar(20)
+  queQuan            String?              @db.VarChar(255)
+  ghiChu             String?              @db.Text
+  gioiTinh           Boolean              @default(true)
+  isDelete           Boolean              @default(false)
+  hoaDonTapHoa       HoaDonTapHoa[]
+  HopDong            HopDong[]
+  PhuongTien         PhuongTien[]
+  NguoiLuuTruTamThoi NguoiLuuTruTamThoi[]
+
+  @@map("nguoithue")
+}
+
+model HopDong {
+  hopDongId      String        @id @map("HopDongID") @db.Char(11)
+  idnt           Int           @map("IDNT")
+  phongId        Int?          @map("PhongID")
+  ngayKy         DateTime?     @db.Date
+  ngayHetHan     DateTime?     @db.Date
+  tienCoc        Decimal?      @db.Decimal(10, 2)
+  giaPhongThucTe Decimal?      @db.Decimal(10, 2)
+  trangThai      Int?          @default(0)
+  isDelete       Boolean       @default(false)
+  hoadonphong    HoaDonPhong[]
+  nguoithue      NguoiThue     @relation(fields: [idnt], references: [idnt], onUpdate: Restrict, map: "HopDong_Fk1")
+  phong          Phong?        @relation(fields: [phongId], references: [phongId], onDelete: Restrict, onUpdate: Restrict, map: "HopDong_Fk2")
+
+  @@index([idnt], map: "IDNT")
+  @@index([phongId], map: "PhongID")
+  @@map("hopdong")
+}
+
+model DienNuoc {
+  idDienNuoc String  @id @db.Char(12)
+  phongId    Int?    @map("PhongID")
+  thangNam   String? @db.VarChar(20)
+  chiSoDien  Int?
+  chiSoNuoc  Int?
+  TrangThai  Int     @default(0)
+  isDelete   Boolean @default(false)
+  phong      Phong?  @relation(fields: [phongId], references: [phongId], onDelete: NoAction, onUpdate: NoAction, map: "diennuoc_ibfk_1")
+
+  @@index([phongId], map: "PhongID")
+  @@map("diennuoc")
+}
+
+model HoaDonPhong {
+  maHoaDon          String              @id @db.Char(23)
+  thangNam          String?             @db.VarChar(20)
+  soTien            Decimal?            @db.Decimal(10, 2)
+  hopDongId         String?             @map("HopDongID") @db.Char(11)
+  isDelete          Boolean             @default(false)
+  hopdong           HopDong?            @relation(fields: [hopDongId], references: [hopDongId], onDelete: Restrict, onUpdate: Restrict, map: "HoaDonPhong_HopDong")
+  phieuThuHangThang PhieuThuHangThang[]
+
+  @@index([hopDongId], map: "HoaDonPhong_HopDong")
+  @@map("hoadonphong")
+}
+
+model PhieuThuHangThang {
+  maPhieuThu  Int          @id @default(autoincrement())
+  ngayThu     DateTime?    @db.Date
+  soTien      Decimal?     @db.Decimal(10, 2)
+  ghiChu      String?      @db.Text
+  maHoaDon    String?      @db.Char(23)
+  isDelete    Boolean      @default(false)
+  hoaDonPhong HoaDonPhong? @relation(fields: [maHoaDon], references: [maHoaDon], onDelete: Restrict, onUpdate: Restrict, map: "phieuthuhangthang_ibfk_1")
+
+  @@index([maHoaDon], map: "phieuthuhangthang_ibfk_1")
+  @@map("phieuthuhangthang")
+}
+
+model PhuongTien {
+  ID          Int           @id
+  bienSo      String        @db.VarChar(50)
+  hangXe      String?       @db.VarChar(100)
+  mauSac      String?       @db.VarChar(100)
+  idnt        Int?          @map("IDNT")
+  loaixe      Int           @default(0)
+  SoTien      Float
+  isDelete    Boolean       @default(false)
+  hoadonguixe HoaDonGuiXe[]
+  nguoithue   NguoiThue?    @relation(fields: [idnt], references: [idnt], onDelete: Restrict, onUpdate: Restrict, map: "PhuongTien_FK")
+
+  @@index([idnt], map: "IDNT")
+  @@map("phuongtien")
+}
+
+model HoaDonGuiXe {
+  maHoaDon   Int         @id @default(autoincrement())
+  thangNam   String?     @db.VarChar(20)
+  soTien     Decimal?    @db.Decimal(10, 2)
+  TrangThai  Int         @default(0)
+  idPT       Int?
+  isDelete   Boolean     @default(false)
+  phuongtien PhuongTien? @relation(fields: [idPT], references: [ID], onDelete: NoAction, onUpdate: NoAction, map: "hoadonGuiXe_PhuongTien_Fk")
+
+  @@index([idPT], map: "hoadonGuiXe_PhuongTien_Fk")
+  @@map("hoadonguixe")
+}
+
+model HangHoa {
+  maHangHoa     Int             @id @default(autoincrement())
+  tenHangHoa    String?         @db.VarChar(255)
+  giaNhap       Decimal?        @db.Decimal(10, 2)
+  giaBan        Decimal?        @db.Decimal(10, 2)
+  isDelete      Boolean         @default(false)
+  chiTietTapHoa ChiTietTapHoa[]
+
+  @@map("hanghoa")
+}
+
+model HoaDonTapHoa {
+  maHoaDon      String          @id @db.Char(11)
+  idnt          Int?            @map("IDNT")
+  ngayBan       DateTime?       @db.Date
+  tongTien      Decimal?        @db.Decimal(10, 2)
+  isDelete      Boolean         @default(false)
+  chiTietTapHoa ChiTietTapHoa[]
+  nguoiThue     NguoiThue?      @relation(fields: [idnt], references: [idnt], onDelete: NoAction, onUpdate: NoAction, map: "hoadontaphoa_ibfk_1")
+  phieuThuHdTh  PhieuThuHdTh[]
+
+  @@index([idnt], map: "IDNT")
+  @@map("hoadontaphoa")
+}
+
+model ChiTietTapHoa {
+  maChiTietHoaDon Int           @id @default(autoincrement())
+  maHoaDon        String?       @db.Char(11)
+  maHangHoa       Int?
+  soLuong         Int?
+  isDelete        Boolean       @default(false)
+  hoaDonTapHoa    HoaDonTapHoa? @relation(fields: [maHoaDon], references: [maHoaDon], onDelete: NoAction, onUpdate: NoAction, map: "chitiettaphoa_ibfk_1")
+  hangHoa         HangHoa?      @relation(fields: [maHangHoa], references: [maHangHoa], onDelete: NoAction, onUpdate: NoAction, map: "chitiettaphoa_ibfk_2")
+
+  @@index([maHoaDon], map: "chitiettaphoa_ibfk_1")
+  @@index([maHangHoa], map: "maHangHoa")
+  @@map("chitiettaphoa")
+}
+
+model PhieuThuHdTh {
+  maPhieuThu   Int           @id @default(autoincrement())
+  ngayThu      DateTime?     @db.Date
+  soTien       Decimal?      @db.Decimal(10, 2)
+  nguoiDong    String?       @db.VarChar(255)
+  maHoaDon     String?       @db.Char(11)
+  isDelete     Boolean       @default(false)
+  hoaDonTapHoa HoaDonTapHoa? @relation(fields: [maHoaDon], references: [maHoaDon], onDelete: NoAction, onUpdate: NoAction, map: "phieuthuhdth_ibfk_1")
+
+  @@index([maHoaDon], map: "phieuthuhdth_ibfk_1")
+  @@map("phieuthuhdth")
+}
+
+model ThietBi {
+  thietBiId  Int       @id @default(autoincrement()) @map("thietBiID")
+  tenThietBi String?   @db.VarChar(255)
+  loai       String?   @db.VarChar(100)
+  giaTri     Decimal?  @db.Decimal(10, 2)
+  ngayMua    DateTime? @db.Date
+  trangThai  String?   @db.VarChar(100)
+  isDelete   Boolean   @default(false)
+  laprap     LapRap[]
+
+  @@map("thietbi")
+}
+
+model LapRap {
+  id        Int       @id @default(autoincrement())
+  phongId   Int?      @map("PhongID")
+  thietBiId Int?      @map("thietBiID")
+  ngayLap   DateTime? @db.Date
+  soLuong   Int?
+  isDelete  Boolean   @default(false)
+  phong     Phong?    @relation(fields: [phongId], references: [phongId], onDelete: Restrict, onUpdate: Restrict, map: "LapRap_FK1")
+  thietbi   ThietBi?  @relation(fields: [thietBiId], references: [thietBiId], onDelete: Restrict, onUpdate: Restrict, map: "LapRap_FK2")
+
+  @@index([phongId], map: "PhongID")
+  @@index([thietBiId], map: "thietBiID")
+  @@map("laprap")
+}
+
+model SuaChua {
+  id            Int             @id @default(autoincrement())
+  phongId       Int?            @map("PhongID")
+  nguyenNhan    String?         @db.Text
+  ngaySuaChua   DateTime?       @db.Date
+  isDelete      Boolean         @default(false)
+  hoadonsuachua HoaDonSuaChua[]
+  phong         Phong?          @relation(fields: [phongId], references: [phongId], onDelete: Restrict, onUpdate: Restrict, map: "suaChua_FK")
+
+  @@index([phongId], map: "PhongID")
+  @@map("suachua")
+}
+
+model HoaDonSuaChua {
+  maHoaDonSc      Int       @id @default(autoincrement()) @map("maHoaDonSC")
+  trangThai       Int       @default(0) @map("TrangThai")
+  giaTien         Decimal?  @db.Decimal(10, 2)
+  loaiSua         String?   @db.VarChar(255)
+  ngayLapHoaDonSc DateTime? @map("ngayLapHoaDonSC") @db.Date
+  idSuaChua       Int?
+  isDelete        Boolean   @default(false)
+  suachua         SuaChua?  @relation(fields: [idSuaChua], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "hoadonsuachua_ibfk_1")
+
+  @@index([idSuaChua], map: "id")
+  @@map("hoadonsuachua")
+}
+
+model NguoiLuuTruTamThoi {
+  idtt      Int       @id @default(autoincrement()) @map("IDTT")
+  hoTen     String?   @db.VarChar(255)
+  cccd      String?   @map("CCCD") @db.VarChar(50)
+  ngaySinh  DateTime? @db.Date
+  sdt       String?   @map("SDT") @db.VarChar(20)
+  queQuan   String?   @db.VarChar(255)
+  phongId   Int?      @map("PhongID")
+  IDNT      Int
+  isDelete  Boolean   @default(false)
+  phong     Phong?    @relation(fields: [phongId], references: [phongId], onDelete: Restrict, onUpdate: Restrict, map: "NguoiLuuTruTamThoi_FK2")
+  nguoithue NguoiThue @relation(fields: [IDNT], references: [idnt], onUpdate: Restrict, map: "NguoiLuuTruTamThoi_Fk1")
+
+  @@index([phongId], map: "PhongID")
+  @@index([IDNT], map: "NguoiLuuTruTamThoi_Fk1")
+  @@map("nguoiluutrutamthoi")
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  username  String?   @unique(map: "username") @db.VarChar(191)
+  email     String?   @unique(map: "email") @db.VarChar(191)
+  password  String?   @db.VarChar(255)
+  role      String?   @default("admin") @db.VarChar(50)
+  createdAt DateTime? @default(now()) @db.DateTime(0)
+  updatedAt DateTime? @default(now()) @db.DateTime(0)
+}

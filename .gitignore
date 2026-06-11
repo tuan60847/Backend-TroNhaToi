@@ -1,0 +1,15 @@
+# Compiled output
+/dist
+/node_modules
+/prisma/migrations
+
+# Environment variables
+.env
+.env.development
+.env.local
+
+# Testing
+/coverage
+
+# Nest framework directories
+.nest
