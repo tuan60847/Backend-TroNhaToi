@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateHoaDonTapHoaDto } from '../dto/create-hoa-don-tap-hoa.dto';
 import { UpdateHoaDonTapHoaDto } from '../dto/update-hoa-don-tap-hoa.dto';
+import { generateId } from '../../common/utils/generate-id.util';
 
 @Injectable()
 export class HoaDonTapHoaService {
@@ -24,7 +25,9 @@ export class HoaDonTapHoaService {
   }
 
   create(dto: CreateHoaDonTapHoaDto) {
-    return this.prisma.hoaDonTapHoa.create({ data: dto as any });
+    return this.prisma.hoaDonTapHoa.create({
+      data: { maHoaDon: generateId('TH', 11), ...dto } as any,
+    });
   }
 
   async update(id: number, dto: UpdateHoaDonTapHoaDto) {

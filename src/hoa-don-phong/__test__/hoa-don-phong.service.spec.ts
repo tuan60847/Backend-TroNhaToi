@@ -84,9 +84,9 @@ describe('HoaDonPhongService', () => {
       mockPrisma.hoaDonPhong.create.mockResolvedValue(MOCK_ITEM);
       const result = await service.create(CREATE_DTO as any);
       expect(result).toEqual(MOCK_ITEM);
-      expect(mockPrisma.hoaDonPhong.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: CREATE_DTO }),
-      );
+      expect(mockPrisma.hoaDonPhong.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ ...CREATE_DTO, maHoaDon: expect.any(String) }),
+      });
     });
 
     it('gọi prisma.create đúng 1 lần', async () => {

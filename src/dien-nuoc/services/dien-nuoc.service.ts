@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateDienNuocDto } from '../dto/create-dien-nuoc.dto';
 import { UpdateDienNuocDto } from '../dto/update-dien-nuoc.dto';
+import { generateId } from '../../common/utils/generate-id.util';
 
 @Injectable()
 export class DienNuocService {
@@ -24,7 +25,9 @@ export class DienNuocService {
   }
 
   create(dto: CreateDienNuocDto) {
-    return this.prisma.dienNuoc.create({ data: dto as any });
+    return this.prisma.dienNuoc.create({
+      data: { idDienNuoc: generateId('DN', 12), ...dto } as any,
+    });
   }
 
   async update(id: string, dto: UpdateDienNuocDto) {

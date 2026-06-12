@@ -120,7 +120,7 @@ model PhieuThuHangThang {
 }
 
 model PhuongTien {
-  ID          Int           @id
+  ID          Int           @id @default(autoincrement())
   bienSo      String        @db.VarChar(50)
   hangXe      String?       @db.VarChar(100)
   mauSac      String?       @db.VarChar(100)

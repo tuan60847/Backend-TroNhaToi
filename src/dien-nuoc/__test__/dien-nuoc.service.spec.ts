@@ -84,9 +84,9 @@ describe('DienNuocService', () => {
       mockPrisma.dienNuoc.create.mockResolvedValue(MOCK_ITEM);
       const result = await service.create(CREATE_DTO as any);
       expect(result).toEqual(MOCK_ITEM);
-      expect(mockPrisma.dienNuoc.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: CREATE_DTO }),
-      );
+      expect(mockPrisma.dienNuoc.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ ...CREATE_DTO, idDienNuoc: expect.any(String) }),
+      });
     });
 
     it('gọi prisma.create đúng 1 lần', async () => {
