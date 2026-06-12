@@ -16,7 +16,7 @@ const mockPrisma = {
 // ─── Fixtures ────────────────────────────────────────────────────────
 const VALID_ID   = 1;
 const INVALID_ID = 9999;
-const CREATE_DTO = {"dienTich": 25.0, "isMayLanh": true, "soNguoiToiDa": 2, "giaTien": 2000000};
+const CREATE_DTO = {"tenLoaiPhong": "Phòng đơn", "dienTich": 25.0, "isMayLanh": true, "soNguoiToiDa": 2, "giaTien": 2000000};
 const UPDATE_DTO = {"giaTien": 2500000, "soNguoiToiDa": 3};
 const MOCK_ITEM  = { maLoaiPhong: 1, ...CREATE_DTO };
 

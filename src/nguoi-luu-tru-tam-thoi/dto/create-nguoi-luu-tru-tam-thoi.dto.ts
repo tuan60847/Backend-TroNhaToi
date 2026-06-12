@@ -3,6 +3,10 @@ import { IsInt, IsOptional, IsString } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateNguoiLuuTruTamThoiDto {
+  @ApiProperty({ description: 'ID người thuê' })
+  @IsInt()
+  IDNT: number;
+
   @ApiPropertyOptional({ description: 'Họ tên' })
   @IsOptional()
   @IsString()

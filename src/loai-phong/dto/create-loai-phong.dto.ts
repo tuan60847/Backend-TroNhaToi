@@ -1,8 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsInt, IsNumber, IsOptional } from 'class-validator';
+import { IsBoolean, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateLoaiPhongDto {
+  @ApiProperty({ example: 'Phòng đơn', description: 'Tên loại phòng' })
+  @IsString()
+  @IsNotEmpty()
+  tenLoaiPhong: string;
+
   @ApiPropertyOptional({ description: 'Diện tích (m²)' })
   @IsOptional()
   dienTich?: number;

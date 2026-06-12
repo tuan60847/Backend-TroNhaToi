@@ -3,10 +3,9 @@ import { IsInt, IsNumber, IsOptional, IsString } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateHopDongDto {
-  @ApiPropertyOptional({ description: 'ID người thuê' })
-  @IsOptional()
+  @ApiProperty({ description: 'ID người thuê' })
   @IsInt()
-  idnt?: number;
+  idnt: number;
 
   @ApiPropertyOptional({ description: 'ID phòng' })
   @IsOptional()

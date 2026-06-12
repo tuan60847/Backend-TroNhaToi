@@ -16,7 +16,7 @@ const mockPrisma = {
 // ─── Fixtures ────────────────────────────────────────────────────────
 const VALID_ID   = '51A-00001';
 const INVALID_ID = '51X-99999';
-const CREATE_DTO = {"bienSo": "51A-00001", "hangXe": "Honda Wave", "mauSac": "Đen", "idnt": 1};
+const CREATE_DTO = {"bienSo": "51A-00001", "SoTien": 5000000, "hangXe": "Honda Wave", "mauSac": "Đen", "idnt": 1};
 const UPDATE_DTO = {"hangXe": "Yamaha Sirius", "mauSac": "Trắng"};
 const MOCK_ITEM  = { ID: 1, ...CREATE_DTO };
 
