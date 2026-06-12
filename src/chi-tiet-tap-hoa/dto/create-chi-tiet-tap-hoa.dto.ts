@@ -1,12 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional } from 'class-validator';
+import { IsInt, IsOptional, IsString } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateChiTietTapHoaDto {
   @ApiPropertyOptional({ description: 'Mã hóa đơn tạp hóa' })
   @IsOptional()
-  @IsInt()
-  maHoaDon?: number;
+  @IsString()
+  maHoaDon?: string;
 
   @ApiPropertyOptional({ description: 'Mã hàng hóa' })
   @IsOptional()

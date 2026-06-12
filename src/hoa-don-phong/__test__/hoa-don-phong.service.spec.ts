@@ -16,7 +16,7 @@ const mockPrisma = {
 // ─── Fixtures ────────────────────────────────────────────────────────
 const VALID_ID   = 'HDP00000000000000001A';
 const INVALID_ID = 'HDP9999999999999999Z9';
-const CREATE_DTO = {"thangNam": "01/2024", "soTien": 2500000, "hopDongId": 1};
+const CREATE_DTO = {"thangNam": "01/2024", "soTien": 2500000, "hopDongId": "HD0000001A1"};
 const UPDATE_DTO = {"soTien": 3000000};
 const MOCK_ITEM  = { maHoaDon: VALID_ID, ...CREATE_DTO };
 
