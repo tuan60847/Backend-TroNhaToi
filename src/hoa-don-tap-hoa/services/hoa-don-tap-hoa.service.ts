@@ -9,13 +9,14 @@ export class HoaDonTapHoaService {
 
   findAll() {
     return this.prisma.hoaDonTapHoa.findMany({
+      where: { isDelete: false },
       include: { nguoiThue: true, chiTietTapHoa: { include: { hangHoa: true } }, phieuThuHdTh: true },
     });
   }
 
   async findOne(id: number) {
-    const item = await this.prisma.hoaDonTapHoa.findUnique({
-      where: { maHoaDon: id.toString() },
+    const item = await this.prisma.hoaDonTapHoa.findFirst({
+      where: { maHoaDon: id.toString(), isDelete: false },
       include: { nguoiThue: true, chiTietTapHoa: { include: { hangHoa: true } }, phieuThuHdTh: true },
     });
     if (!item) throw new NotFoundException(`HoaDonTapHoa với id ${id} không tồn tại`);
@@ -33,6 +34,6 @@ export class HoaDonTapHoaService {
 
   async remove(id: number) {
     await this.findOne(id);
-    return this.prisma.hoaDonTapHoa.delete({ where: { maHoaDon: id.toString() } });
+    return this.prisma.hoaDonTapHoa.update({ where: { maHoaDon: id.toString() }, data: { isDelete: true } });
   }
 }

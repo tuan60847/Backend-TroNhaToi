@@ -9,13 +9,14 @@ export class ChiTietTapHoaService {
 
   findAll() {
     return this.prisma.chiTietTapHoa.findMany({
+      where: { isDelete: false },
       include: { hoaDonTapHoa: true, hangHoa: true },
     });
   }
 
   async findOne(id: number) {
-    const item = await this.prisma.chiTietTapHoa.findUnique({
-      where: { maChiTietHoaDon: id },
+    const item = await this.prisma.chiTietTapHoa.findFirst({
+      where: { maChiTietHoaDon: id, isDelete: false },
       include: { hoaDonTapHoa: true, hangHoa: true },
     });
     if (!item) throw new NotFoundException(`ChiTietTapHoa với id ${id} không tồn tại`);
@@ -33,6 +34,6 @@ export class ChiTietTapHoaService {
 
   async remove(id: number) {
     await this.findOne(id);
-    return this.prisma.chiTietTapHoa.delete({ where: { maChiTietHoaDon: id } });
+    return this.prisma.chiTietTapHoa.update({ where: { maChiTietHoaDon: id }, data: { isDelete: true } });
   }
 }

@@ -9,13 +9,14 @@ export class HoaDonGuiXeService {
 
   findAll() {
     return this.prisma.hoaDonGuiXe.findMany({
+      where: { isDelete: false },
       //include: { phuongTien: { include: { nguoiThue: true } } },
     });
   }
 
   async findOne(id: number) {
-    const item = await this.prisma.hoaDonGuiXe.findUnique({
-      where: { maHoaDon: id },
+    const item = await this.prisma.hoaDonGuiXe.findFirst({
+      where: { maHoaDon: id, isDelete: false },
       //include: { phuongTien: { include: { nguoiThue: true } } },
     });
     if (!item) throw new NotFoundException(`HoaDonGuiXe với id ${id} không tồn tại`);
@@ -33,6 +34,6 @@ export class HoaDonGuiXeService {
 
   async remove(id: number) {
     await this.findOne(id);
-    return this.prisma.hoaDonGuiXe.delete({ where: { maHoaDon: id } });
+    return this.prisma.hoaDonGuiXe.update({ where: { maHoaDon: id }, data: { isDelete: true } });
   }
 }

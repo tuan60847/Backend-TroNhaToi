@@ -9,6 +9,7 @@ export class NguoiThueService {
 
   findAll() {
     return this.prisma.nguoiThue.findMany({
+      where: { isDelete: false },
       //include: { hopDong: { include: { phong: true } }, phuongTien: true },
     });
   }
@@ -20,8 +21,8 @@ export class NguoiThueService {
   }
 
   async findOne(id: number) {
-    const item = await this.prisma.nguoiThue.findUnique({
-      where: { idnt: id },
+    const item = await this.prisma.nguoiThue.findFirst({
+      where: { idnt: id, isDelete: false },
       // include: { hopDong: { include: { phong: true } }, phuongTien: true },
     });
     if (!item) throw new NotFoundException(`NguoiThue với id ${id} không tồn tại`);
@@ -39,6 +40,6 @@ export class NguoiThueService {
 
   async remove(id: number) {
     await this.findOne(id);
-    return this.prisma.nguoiThue.delete({ where: { idnt: id } });
+    return this.prisma.nguoiThue.update({ where: { idnt: id }, data: { isDelete: true } });
   }
 }

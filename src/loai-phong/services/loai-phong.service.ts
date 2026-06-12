@@ -9,13 +9,14 @@ export class LoaiPhongService {
 
   findAll() {
     return this.prisma.loaiPhong.findMany({
+      where: { isDelete: false },
       include: { phong: { select: { phongId: true, tenPhong: true, trangThai: true } } },
     });
   }
 
   async findOne(id: number) {
-    const item = await this.prisma.loaiPhong.findUnique({
-      where: { maLoaiPhong: id },
+    const item = await this.prisma.loaiPhong.findFirst({
+      where: { maLoaiPhong: id, isDelete: false },
       include: { phong: { select: { phongId: true, tenPhong: true, trangThai: true } } },
     });
     if (!item) throw new NotFoundException(`LoaiPhong với id ${id} không tồn tại`);
@@ -33,6 +34,6 @@ export class LoaiPhongService {
 
   async remove(id: number) {
     await this.findOne(id);
-    return this.prisma.loaiPhong.delete({ where: { maLoaiPhong: id } });
+    return this.prisma.loaiPhong.update({ where: { maLoaiPhong: id }, data: { isDelete: true } });
   }
 }

@@ -7,10 +7,9 @@ import { NotFoundException } from '@nestjs/common';
 const mockPrisma = {
   nguoiLuuTruTamThoi: {
     findMany:  jest.fn(),
-    findUnique: jest.fn(),
+    findFirst: jest.fn(),
     create:    jest.fn(),
     update:    jest.fn(),
-    delete:    jest.fn(),
   },
 };
 
@@ -59,21 +58,21 @@ describe('NguoiLuuTruTamThoiService', () => {
   // ── findOne ────────────────────────────────────────────────────────
   describe('findOne()', () => {
     it('trả về record khi tìm thấy', async () => {
-      mockPrisma.nguoiLuuTruTamThoi.findUnique.mockResolvedValue(MOCK_ITEM);
+      mockPrisma.nguoiLuuTruTamThoi.findFirst.mockResolvedValue(MOCK_ITEM);
       const result = await service.findOne(VALID_ID as any);
       expect(result).toEqual(MOCK_ITEM);
-      expect(mockPrisma.nguoiLuuTruTamThoi.findUnique).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { idtt: VALID_ID } }),
+      expect(mockPrisma.nguoiLuuTruTamThoi.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { idtt: VALID_ID, isDelete: false } }),
       );
     });
 
     it('ném NotFoundException khi không tìm thấy', async () => {
-      mockPrisma.nguoiLuuTruTamThoi.findUnique.mockResolvedValue(null);
+      mockPrisma.nguoiLuuTruTamThoi.findFirst.mockResolvedValue(null);
       await expect(service.findOne(INVALID_ID as any)).rejects.toThrow(NotFoundException);
     });
 
     it('ném NotFoundException với message đúng', async () => {
-      mockPrisma.nguoiLuuTruTamThoi.findUnique.mockResolvedValue(null);
+      mockPrisma.nguoiLuuTruTamThoi.findFirst.mockResolvedValue(null);
       await expect(service.findOne(INVALID_ID as any))
         .rejects.toThrow('không tồn tại');
     });
@@ -101,7 +100,7 @@ describe('NguoiLuuTruTamThoiService', () => {
   describe('update()', () => {
     it('cập nhật và trả về record đã sửa', async () => {
       const updated = { ...MOCK_ITEM, ...UPDATE_DTO };
-      mockPrisma.nguoiLuuTruTamThoi.findUnique.mockResolvedValue(MOCK_ITEM);
+      mockPrisma.nguoiLuuTruTamThoi.findFirst.mockResolvedValue(MOCK_ITEM);
       mockPrisma.nguoiLuuTruTamThoi.update.mockResolvedValue(updated);
 
       const result = await service.update(VALID_ID as any, UPDATE_DTO as any);
@@ -112,13 +111,13 @@ describe('NguoiLuuTruTamThoiService', () => {
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {
-      mockPrisma.nguoiLuuTruTamThoi.findUnique.mockResolvedValue(null);
+      mockPrisma.nguoiLuuTruTamThoi.findFirst.mockResolvedValue(null);
       await expect(service.update(INVALID_ID as any, UPDATE_DTO as any))
         .rejects.toThrow(NotFoundException);
     });
 
     it('không gọi prisma.update khi record không tồn tại', async () => {
-      mockPrisma.nguoiLuuTruTamThoi.findUnique.mockResolvedValue(null);
+      mockPrisma.nguoiLuuTruTamThoi.findFirst.mockResolvedValue(null);
       try {
         await service.update(INVALID_ID as any, UPDATE_DTO as any);
       } catch {}
@@ -128,28 +127,28 @@ describe('NguoiLuuTruTamThoiService', () => {
 
   // ── remove ─────────────────────────────────────────────────────────
   describe('remove()', () => {
-    it('xóa và trả về record đã xóa', async () => {
-      mockPrisma.nguoiLuuTruTamThoi.findUnique.mockResolvedValue(MOCK_ITEM);
-      mockPrisma.nguoiLuuTruTamThoi.delete.mockResolvedValue(MOCK_ITEM);
+    it('xóa mềm (set isDelete=true) và trả về record đã cập nhật', async () => {
+      mockPrisma.nguoiLuuTruTamThoi.findFirst.mockResolvedValue(MOCK_ITEM);
+      mockPrisma.nguoiLuuTruTamThoi.update.mockResolvedValue({ ...MOCK_ITEM, isDelete: true });
 
       const result = await service.remove(VALID_ID as any);
-      expect(result).toEqual(MOCK_ITEM);
-      expect(mockPrisma.nguoiLuuTruTamThoi.delete).toHaveBeenCalledWith(
-        { where: { idtt: VALID_ID } },
+      expect(result).toEqual({ ...MOCK_ITEM, isDelete: true });
+      expect(mockPrisma.nguoiLuuTruTamThoi.update).toHaveBeenCalledWith(
+        { where: { idtt: VALID_ID }, data: { isDelete: true } },
       );
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {
-      mockPrisma.nguoiLuuTruTamThoi.findUnique.mockResolvedValue(null);
+      mockPrisma.nguoiLuuTruTamThoi.findFirst.mockResolvedValue(null);
       await expect(service.remove(INVALID_ID as any)).rejects.toThrow(NotFoundException);
     });
 
-    it('không gọi prisma.delete khi record không tồn tại', async () => {
-      mockPrisma.nguoiLuuTruTamThoi.findUnique.mockResolvedValue(null);
+    it('không gọi prisma.update khi record không tồn tại', async () => {
+      mockPrisma.nguoiLuuTruTamThoi.findFirst.mockResolvedValue(null);
       try {
         await service.remove(INVALID_ID as any);
       } catch {}
-      expect(mockPrisma.nguoiLuuTruTamThoi.delete).not.toHaveBeenCalled();
+      expect(mockPrisma.nguoiLuuTruTamThoi.update).not.toHaveBeenCalled();
     });
   });
 

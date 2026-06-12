@@ -9,13 +9,14 @@ export class DienNuocService {
 
   findAll() {
     return this.prisma.dienNuoc.findMany({
+      where: { isDelete: false },
       include: { phong: { select: { phongId: true, tenPhong: true } } },
     });
   }
 
   async findOne(id: string) {
-    const item = await this.prisma.dienNuoc.findUnique({
-      where: { idDienNuoc: id },
+    const item = await this.prisma.dienNuoc.findFirst({
+      where: { idDienNuoc: id, isDelete: false },
       include: { phong: { select: { phongId: true, tenPhong: true } } },
     });
     if (!item) throw new NotFoundException(`DienNuoc với id ${id} không tồn tại`);
@@ -33,6 +34,6 @@ export class DienNuocService {
 
   async remove(id: string) {
     await this.findOne(id);
-    return this.prisma.dienNuoc.delete({ where: { idDienNuoc: id } });
+    return this.prisma.dienNuoc.update({ where: { idDienNuoc: id }, data: { isDelete: true } });
   }
 }

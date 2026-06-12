@@ -9,13 +9,14 @@ export class PhongService {
 
   findAll() {
     return this.prisma.phong.findMany({
+      where: { isDelete: false },
       // include: { loaiPhong: true, hopDong: { include: { nguoiThue: true } }, dienNuoc: true, lapRap: { include: { thietBi: true } }, nguoiLuuTruTamThoi: true },
     });
   }
 
   async findOne(id: number) {
-    const item = await this.prisma.phong.findUnique({
-      where: { phongId: id },
+    const item = await this.prisma.phong.findFirst({
+      where: { phongId: id, isDelete: false },
       // include: { loaiPhong: true, hopDong: { include: { nguoiThue: true } }, dienNuoc: true, lapRap: { include: { thietBi: true } }, nguoiLuuTruTamThoi: true },
     });
     if (!item) throw new NotFoundException(`Phong với id ${id} không tồn tại`);
@@ -33,6 +34,6 @@ export class PhongService {
 
   async remove(id: number) {
     await this.findOne(id);
-    return this.prisma.phong.delete({ where: { phongId: id } });
+    return this.prisma.phong.update({ where: { phongId: id }, data: { isDelete: true } });
   }
 }
