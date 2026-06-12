@@ -14,11 +14,11 @@ const mockPrisma = {
 };
 
 // ─── Fixtures ────────────────────────────────────────────────────────
-const VALID_ID   = 1;
-const INVALID_ID = 9999;
+const VALID_ID   = 'HD0000001A1';
+const INVALID_ID = 'HD9999999Z9';
 const CREATE_DTO = {"idnt": 1, "phongId": 1, "ngayKy": "2024-01-01", "ngayHetHan": "2025-01-01", "tienCoc": 2000000, "giaPhongThucTe": 2000000, "trangThai": "dangThue"};
 const UPDATE_DTO = {"trangThai": "hetHan", "giaPhongThucTe": 2500000};
-const MOCK_ITEM  = { hopDongId: 1, ...CREATE_DTO };
+const MOCK_ITEM  = { hopDongId: VALID_ID, ...CREATE_DTO };
 
 describe('HopDongService', () => {
   let service: HopDongService;

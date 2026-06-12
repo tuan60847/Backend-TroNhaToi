@@ -15,9 +15,9 @@ export class HopDongService {
     });
   }
 
-  async findOne(id: number) {
+  async findOne(id: string) {
     const item = await this.prisma.hopDong.findFirst({
-      where: { hopDongId: id.toString(), isDelete: false },
+      where: { hopDongId: id, isDelete: false },
       //include: { nguoiThue: true, phong: { include: { loaiPhong: true } }, hoaDonPhong: true },
     });
     if (!item) throw new NotFoundException(`HopDong với id ${id} không tồn tại`);
@@ -30,13 +30,13 @@ export class HopDongService {
     });
   }
 
-  async update(id: number, dto: UpdateHopDongDto) {
+  async update(id: string, dto: UpdateHopDongDto) {
     await this.findOne(id);
-    return this.prisma.hopDong.update({ where: { hopDongId: id.toString() }, data: dto as any });
+    return this.prisma.hopDong.update({ where: { hopDongId: id }, data: dto as any });
   }
 
-  async remove(id: number) {
+  async remove(id: string) {
     await this.findOne(id);
-    return this.prisma.hopDong.update({ where: { hopDongId: id.toString() }, data: { isDelete: true } });
+    return this.prisma.hopDong.update({ where: { hopDongId: id }, data: { isDelete: true } });
   }
 }

@@ -14,11 +14,11 @@ const mockPrisma = {
 };
 
 // ─── Fixtures ────────────────────────────────────────────────────────
-const VALID_ID   = 1;
-const INVALID_ID = 9999;
+const VALID_ID   = 'TH00000001A';
+const INVALID_ID = 'TH9999999Z9';
 const CREATE_DTO = {"idnt": 1, "ngayBan": "2024-01-15", "tongTien": 50000};
 const UPDATE_DTO = {"tongTien": 75000};
-const MOCK_ITEM  = { maHoaDon: 1, ...CREATE_DTO };
+const MOCK_ITEM  = { maHoaDon: VALID_ID, ...CREATE_DTO };
 
 describe('HoaDonTapHoaService', () => {
   let service: HoaDonTapHoaService;

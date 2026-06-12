@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { HopDongService } from '../services/hop-dong.service';
 import { CreateHopDongDto } from '../dto/create-hop-dong.dto';
@@ -27,19 +27,19 @@ export class HopDongController {
   @Get(':hopDongId')
   @ApiOperation({ summary: 'Chi tiết Hợp Đồng' })
   @ApiParam({ name: 'hopDongId', description: 'ID của Hợp Đồng' })
-  findOne(@Param('hopDongId', ParseIntPipe) id: number) {
+  findOne(@Param('hopDongId') id: string) {
     return this.hopDongService.findOne(id);
   }
 
   @Patch(':hopDongId')
   @ApiOperation({ summary: 'Cập nhật Hợp Đồng' })
-  update(@Param('hopDongId', ParseIntPipe) id: number, @Body() dto: UpdateHopDongDto) {
+  update(@Param('hopDongId') id: string, @Body() dto: UpdateHopDongDto) {
     return this.hopDongService.update(id, dto);
   }
 
   @Delete(':hopDongId')
   @ApiOperation({ summary: 'Xóa Hợp Đồng' })
-  remove(@Param('hopDongId', ParseIntPipe) id: number) {
+  remove(@Param('hopDongId') id: string) {
     return this.hopDongService.remove(id);
   }
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { HoaDonTapHoaService } from '../services/hoa-don-tap-hoa.service';
 import { CreateHoaDonTapHoaDto } from '../dto/create-hoa-don-tap-hoa.dto';
@@ -27,19 +27,19 @@ export class HoaDonTapHoaController {
   @Get(':maHoaDon')
   @ApiOperation({ summary: 'Chi tiết Hóa Đơn Tạp Hóa' })
   @ApiParam({ name: 'maHoaDon', description: 'ID của Hóa Đơn Tạp Hóa' })
-  findOne(@Param('maHoaDon', ParseIntPipe) id: number) {
+  findOne(@Param('maHoaDon') id: string) {
     return this.hoaDonTapHoaService.findOne(id);
   }
 
   @Patch(':maHoaDon')
   @ApiOperation({ summary: 'Cập nhật Hóa Đơn Tạp Hóa' })
-  update(@Param('maHoaDon', ParseIntPipe) id: number, @Body() dto: UpdateHoaDonTapHoaDto) {
+  update(@Param('maHoaDon') id: string, @Body() dto: UpdateHoaDonTapHoaDto) {
     return this.hoaDonTapHoaService.update(id, dto);
   }
 
   @Delete(':maHoaDon')
   @ApiOperation({ summary: 'Xóa Hóa Đơn Tạp Hóa' })
-  remove(@Param('maHoaDon', ParseIntPipe) id: number) {
+  remove(@Param('maHoaDon') id: string) {
     return this.hoaDonTapHoaService.remove(id);
   }
 }

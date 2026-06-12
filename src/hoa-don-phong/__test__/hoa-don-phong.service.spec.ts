@@ -14,11 +14,11 @@ const mockPrisma = {
 };
 
 // ─── Fixtures ────────────────────────────────────────────────────────
-const VALID_ID   = 1;
-const INVALID_ID = 9999;
+const VALID_ID   = 'HDP00000000000000001A';
+const INVALID_ID = 'HDP9999999999999999Z9';
 const CREATE_DTO = {"thangNam": "01/2024", "soTien": 2500000, "hopDongId": 1};
 const UPDATE_DTO = {"soTien": 3000000};
-const MOCK_ITEM  = { maHoaDon: 1, ...CREATE_DTO };
+const MOCK_ITEM  = { maHoaDon: VALID_ID, ...CREATE_DTO };
 
 describe('HoaDonPhongService', () => {
   let service: HoaDonPhongService;
@@ -62,7 +62,7 @@ describe('HoaDonPhongService', () => {
       const result = await service.findOne(VALID_ID as any);
       expect(result).toEqual(MOCK_ITEM);
       expect(mockPrisma.hoaDonPhong.findFirst).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { maHoaDon: VALID_ID.toString(), isDelete: false } }),
+        expect.objectContaining({ where: { maHoaDon: VALID_ID, isDelete: false } }),
       );
     });
 
@@ -106,7 +106,7 @@ describe('HoaDonPhongService', () => {
       const result = await service.update(VALID_ID as any, UPDATE_DTO as any);
       expect(result).toEqual(updated);
       expect(mockPrisma.hoaDonPhong.update).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { maHoaDon: VALID_ID.toString() } }),
+        expect.objectContaining({ where: { maHoaDon: VALID_ID } }),
       );
     });
 
@@ -134,7 +134,7 @@ describe('HoaDonPhongService', () => {
       const result = await service.remove(VALID_ID as any);
       expect(result).toEqual({ ...MOCK_ITEM, isDelete: true });
       expect(mockPrisma.hoaDonPhong.update).toHaveBeenCalledWith(
-        { where: { maHoaDon: VALID_ID.toString() }, data: { isDelete: true } },
+        { where: { maHoaDon: VALID_ID }, data: { isDelete: true } },
       );
     });
 
