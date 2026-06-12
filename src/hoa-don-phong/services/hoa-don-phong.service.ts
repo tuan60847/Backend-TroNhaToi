@@ -9,17 +9,18 @@ export class HoaDonPhongService {
 
   findAll() {
     return this.prisma.hoaDonPhong.findMany({
+      where: { isDelete: false },
       //include: { hopDong: { include: { nguoiThue: true, phong: true } }, phieuThuHangThang: true },
     });
   }
 
   async findOne(id: number) {
-    // const item = await this.prisma.hoaDonPhong.findUnique({
-    //   //where: { maHoaDon: id },
-    //   //include: { hopDong: { include: { nguoiThue: true, phong: true } }, phieuThuHangThang: true },
-    // });
-    // if (!item) throw new NotFoundException(`HoaDonPhong với id ${id} không tồn tại`);
-    // return item;
+    const item = await this.prisma.hoaDonPhong.findFirst({
+      where: { maHoaDon: id.toString(), isDelete: false },
+      //include: { hopDong: { include: { nguoiThue: true, phong: true } }, phieuThuHangThang: true },
+    });
+    if (!item) throw new NotFoundException(`HoaDonPhong với id ${id} không tồn tại`);
+    return item;
   }
 
   create(dto: CreateHoaDonPhongDto) {
@@ -28,11 +29,11 @@ export class HoaDonPhongService {
 
   async update(id: number, dto: UpdateHoaDonPhongDto) {
     await this.findOne(id);
-    //return this.prisma.hoaDonPhong.update({ where: { maHoaDon: id }, data: dto as any });
+    return this.prisma.hoaDonPhong.update({ where: { maHoaDon: id.toString() }, data: dto as any });
   }
 
   async remove(id: number) {
     await this.findOne(id);
-    return this.prisma.hoaDonPhong.delete({ where: { maHoaDon: id.toString() } });
+    return this.prisma.hoaDonPhong.update({ where: { maHoaDon: id.toString() }, data: { isDelete: true } });
   }
 }

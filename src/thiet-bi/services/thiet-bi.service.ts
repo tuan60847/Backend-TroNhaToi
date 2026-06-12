@@ -9,18 +9,18 @@ export class ThietBiService {
 
   findAll() {
     return this.prisma.thietBi.findMany({
+      where: { isDelete: false },
       //include: { lapRap: { include: { phong: true } } },
     });
   }
 
   async findOne(id: number) {
-    // const item = await this.prisma.thietBi.findUnique({
-    //   where: { thietBiId: id },
-    //   include: { lapRap: { include: { phong: true } } },
-    // });
-    // if (!item) throw new NotFoundException(`ThietBi với id ${id} không tồn tại`);
-    // return item;
-    return null;
+    const item = await this.prisma.thietBi.findFirst({
+      where: { thietBiId: id, isDelete: false },
+      //include: { lapRap: { include: { phong: true } } },
+    });
+    if (!item) throw new NotFoundException(`ThietBi với id ${id} không tồn tại`);
+    return item;
   }
 
   create(dto: CreateThietBiDto) {
@@ -34,6 +34,6 @@ export class ThietBiService {
 
   async remove(id: number) {
     await this.findOne(id);
-    return this.prisma.thietBi.delete({ where: { thietBiId: id } });
+    return this.prisma.thietBi.update({ where: { thietBiId: id }, data: { isDelete: true } });
   }
 }
