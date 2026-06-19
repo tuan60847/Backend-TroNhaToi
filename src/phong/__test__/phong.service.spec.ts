@@ -16,8 +16,8 @@ const mockPrisma = {
 // ─── Fixtures ────────────────────────────────────────────────────────
 const VALID_ID   = 1;
 const INVALID_ID = 9999;
-const CREATE_DTO = {"tenPhong": "P101", "trangThai": "trong", "moTa": "Phòng đơn", "maLoaiPhong": 1};
-const UPDATE_DTO = {"trangThai": "dangThue", "moTa": "Đã có người thuê"};
+const CREATE_DTO = {"tenPhong": "P101", "trangThai": 0, "moTa": "Phòng đơn", "maLoaiPhong": 1};
+const UPDATE_DTO = {"trangThai": 1, "moTa": "Đã có người thuê"};
 const MOCK_ITEM  = { phongId: 1, ...CREATE_DTO };
 
 describe('PhongService', () => {

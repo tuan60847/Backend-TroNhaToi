@@ -5,8 +5,8 @@ import { PartialType } from '@nestjs/mapped-types';
 export class CreateHoaDonSuaChuaDto {
   @ApiPropertyOptional({ description: 'Trạng thái' })
   @IsOptional()
-  @IsString()
-  trangThai?: string;
+  @IsInt()
+  trangThai?: number;
 
   @ApiPropertyOptional({ description: 'Giá tiền' })
   @IsOptional()
@@ -15,18 +15,17 @@ export class CreateHoaDonSuaChuaDto {
 
   @ApiPropertyOptional({ description: 'Loại sửa' })
   @IsOptional()
-  @IsString()
-  loaiSua?: string;
+  @IsInt()
+  loaiSua?: number;
 
   @ApiPropertyOptional({ description: 'Ngày lập hóa đơn (YYYY-MM-DD)' })
   @IsOptional()
   @IsString()
   ngayLapHoaDonSc?: string;
 
-  @ApiPropertyOptional({ description: 'ID sửa chữa' })
-  @IsOptional()
+  @ApiProperty({ description: 'ID sửa chữa' })
   @IsInt()
-  suaChuaId?: number;
+  idSuaChua: number;
 
 }
 

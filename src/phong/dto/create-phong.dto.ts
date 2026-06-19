@@ -8,10 +8,10 @@ export class CreatePhongDto {
   @IsString()
   tenPhong?: string;
 
-  @ApiPropertyOptional({ description: 'Trạng thái (trong/dangThue/suaChua)' })
+  @ApiPropertyOptional({ description: 'Trạng thái (0: trống, ...)' })
   @IsOptional()
-  @IsString()
-  trangThai?: string;
+  @IsInt()
+  trangThai?: number;
 
   @ApiPropertyOptional({ description: 'Mô tả' })
   @IsOptional()

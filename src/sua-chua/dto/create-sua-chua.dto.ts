@@ -8,6 +8,11 @@ export class CreateSuaChuaDto {
   @IsInt()
   phongId?: number;
 
+  @ApiPropertyOptional({ description: 'ID thiết bị' })
+  @IsOptional()
+  @IsInt()
+  thietBiId?: number;
+
   @ApiPropertyOptional({ description: 'Nguyên nhân' })
   @IsOptional()
   @IsString()

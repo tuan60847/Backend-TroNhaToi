@@ -27,7 +27,7 @@ model LoaiPhong {
 model Phong {
   phongId            Int                  @id @default(autoincrement()) @map("PhongID")
   tenPhong           String?              @db.VarChar(255)
-  trangThai          String?              @db.VarChar(100)
+  trangThai          Int?                 @default(0)
   moTa               String?              @db.Text
   maLoaiPhong        Int?
   isDelete           Boolean              @default(false)
@@ -167,7 +167,7 @@ model HoaDonTapHoa {
   isDelete      Boolean         @default(false)
   chiTietTapHoa ChiTietTapHoa[]
   nguoiThue     NguoiThue?      @relation(fields: [idnt], references: [idnt], onDelete: NoAction, onUpdate: NoAction, map: "hoadontaphoa_ibfk_1")
-  phieuThuHdTh  PhieuThuHdTh[]
+  phieuThuHdTh  PhieuThuHdTh?
 
   @@index([idnt], map: "IDNT")
   @@map("hoadontaphoa")
@@ -188,15 +188,14 @@ model ChiTietTapHoa {
 }
 
 model PhieuThuHdTh {
-  maPhieuThu   Int           @id @default(autoincrement())
-  ngayThu      DateTime?     @db.Date
-  soTien       Decimal?      @db.Decimal(10, 2)
-  nguoiDong    String?       @db.VarChar(255)
-  maHoaDon     String?       @db.Char(11)
-  isDelete     Boolean       @default(false)
-  hoaDonTapHoa HoaDonTapHoa? @relation(fields: [maHoaDon], references: [maHoaDon], onDelete: NoAction, onUpdate: NoAction, map: "phieuthuhdth_ibfk_1")
+  maPhieuThu   Int          @id @default(autoincrement())
+  ngayThu      DateTime?    @db.Date
+  soTien       Decimal?     @db.Decimal(10, 2)
+  nguoiDong    String?      @db.VarChar(255)
+  maHoaDon     String       @unique @db.Char(11)
+  isDelete     Boolean      @default(false)
+  hoaDonTapHoa HoaDonTapHoa @relation(fields: [maHoaDon], references: [maHoaDon], onDelete: NoAction, onUpdate: NoAction, map: "phieuthuhdth_ibfk_1")
 
-  @@index([maHoaDon], map: "phieuthuhdth_ibfk_1")
   @@map("phieuthuhdth")
 }
 
@@ -206,9 +205,10 @@ model ThietBi {
   loai       String?   @db.VarChar(100)
   giaTri     Decimal?  @db.Decimal(10, 2)
   ngayMua    DateTime? @db.Date
-  trangThai  String?   @db.VarChar(100)
+  trangThai  Int?      @default(0)
   isDelete   Boolean   @default(false)
   laprap     LapRap[]
+  suachua    SuaChua[]
 
   @@map("thietbi")
 }
@@ -229,15 +229,18 @@ model LapRap {
 }
 
 model SuaChua {
-  id            Int             @id @default(autoincrement())
-  phongId       Int?            @map("PhongID")
-  nguyenNhan    String?         @db.Text
-  ngaySuaChua   DateTime?       @db.Date
-  isDelete      Boolean         @default(false)
-  hoadonsuachua HoaDonSuaChua[]
-  phong         Phong?          @relation(fields: [phongId], references: [phongId], onDelete: Restrict, onUpdate: Restrict, map: "suaChua_FK")
+  id            Int            @id @default(autoincrement())
+  phongId       Int?           @map("PhongID")
+  thietBiId     Int?           @map("thietBiID")
+  nguyenNhan    String?        @db.Text
+  ngaySuaChua   DateTime?      @db.Date
+  isDelete      Boolean        @default(false)
+  hoadonsuachua HoaDonSuaChua?
+  phong         Phong?         @relation(fields: [phongId], references: [phongId], onDelete: Restrict, onUpdate: Restrict, map: "suaChua_FK")
+  thietbi       ThietBi?       @relation(fields: [thietBiId], references: [thietBiId], onDelete: Restrict, onUpdate: Restrict, map: "suaChua_FK2")
 
   @@index([phongId], map: "PhongID")
+  @@index([thietBiId], map: "thietBiID")
   @@map("suachua")
 }
 
@@ -245,13 +248,12 @@ model HoaDonSuaChua {
   maHoaDonSc      Int       @id @default(autoincrement()) @map("maHoaDonSC")
   trangThai       Int       @default(0) @map("TrangThai")
   giaTien         Decimal?  @db.Decimal(10, 2)
-  loaiSua         String?   @db.VarChar(255)
+  loaiSua         Int       @default(0)
   ngayLapHoaDonSc DateTime? @map("ngayLapHoaDonSC") @db.Date
-  idSuaChua       Int?
+  idSuaChua       Int       @unique
   isDelete        Boolean   @default(false)
-  suachua         SuaChua?  @relation(fields: [idSuaChua], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "hoadonsuachua_ibfk_1")
+  suachua         SuaChua   @relation(fields: [idSuaChua], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "hoadonsuachua_ibfk_1")
 
-  @@index([idSuaChua], map: "id")
   @@map("hoadonsuachua")
 }
 

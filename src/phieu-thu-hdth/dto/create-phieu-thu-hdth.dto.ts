@@ -18,10 +18,9 @@ export class CreatePhieuThuHdThDto {
   @IsString()
   nguoiDong?: string;
 
-  @ApiPropertyOptional({ description: 'Mã hóa đơn tạp hóa' })
-  @IsOptional()
+  @ApiProperty({ description: 'Mã hóa đơn tạp hóa' })
   @IsString()
-  maHoaDon?: string;
+  maHoaDon: string;
 
 }
 
