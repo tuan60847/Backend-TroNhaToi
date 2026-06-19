@@ -39,4 +39,15 @@ export class DienNuocService {
     await this.findOne(id);
     return this.prisma.dienNuoc.update({ where: { idDienNuoc: id }, data: { isDelete: true } });
   }
+  getAllLoadingBalance(id?: string) {
+    return this.prisma.dienNuoc.findMany({
+      where: { isDelete: false },
+      orderBy: { idDienNuoc: 'asc' },
+      take: 15,
+      ...(id !== undefined && id !== null
+        ? { skip: 1, cursor: { idDienNuoc: id } }
+        : {}),
+    });
+  }
+
 }

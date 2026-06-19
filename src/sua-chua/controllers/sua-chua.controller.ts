@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { SuaChuaService } from '../services/sua-chua.service';
 import { CreateSuaChuaDto } from '../dto/create-sua-chua.dto';
 import { UpdateSuaChuaDto } from '../dto/update-sua-chua.dto';
@@ -22,6 +22,13 @@ export class SuaChuaController {
   @ApiOperation({ summary: 'Danh sách Sửa Chữa' })
   findAll() {
     return this.suaChuaService.findAll();
+  }
+
+  @Get('load-balance')
+  @ApiOperation({ summary: 'Lấy 15 phần tử (cuộn tải dần theo id)' })
+  @ApiQuery({ name: 'id', required: false, description: 'ID cuối cùng đã tải, bỏ trống để lấy 15 phần tử đầu' })
+  getAllLoadingBalance(@Query('id') id?: string) {
+    return this.suaChuaService.getAllLoadingBalance(id !== undefined ? Number(id) : undefined);
   }
 
   @Get(':id')

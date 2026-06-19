@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { HopDongService } from '../services/hop-dong.service';
 import { CreateHopDongDto } from '../dto/create-hop-dong.dto';
 import { UpdateHopDongDto } from '../dto/update-hop-dong.dto';
@@ -22,6 +22,13 @@ export class HopDongController {
   @ApiOperation({ summary: 'Danh sách Hợp Đồng' })
   findAll() {
     return this.hopDongService.findAll();
+  }
+
+  @Get('load-balance')
+  @ApiOperation({ summary: 'Lấy 15 phần tử (cuộn tải dần theo id)' })
+  @ApiQuery({ name: 'id', required: false, description: 'ID cuối cùng đã tải, bỏ trống để lấy 15 phần tử đầu' })
+  getAllLoadingBalance(@Query('id') id?: string) {
+    return this.hopDongService.getAllLoadingBalance(id);
   }
 
   @Get(':hopDongId')

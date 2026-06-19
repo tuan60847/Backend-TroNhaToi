@@ -36,4 +36,15 @@ export class ThietBiService {
     await this.findOne(id);
     return this.prisma.thietBi.update({ where: { thietBiId: id }, data: { isDelete: true } });
   }
+  getAllLoadingBalance(id?: number) {
+    return this.prisma.thietBi.findMany({
+      where: { isDelete: false },
+      orderBy: { thietBiId: 'asc' },
+      take: 15,
+      ...(id !== undefined && id !== null
+        ? { skip: 1, cursor: { thietBiId: id } }
+        : {}),
+    });
+  }
+
 }

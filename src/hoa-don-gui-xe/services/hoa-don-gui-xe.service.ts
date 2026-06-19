@@ -36,4 +36,15 @@ export class HoaDonGuiXeService {
     await this.findOne(id);
     return this.prisma.hoaDonGuiXe.update({ where: { maHoaDon: id }, data: { isDelete: true } });
   }
+  getAllLoadingBalance(id?: number) {
+    return this.prisma.hoaDonGuiXe.findMany({
+      where: { isDelete: false },
+      orderBy: { maHoaDon: 'asc' },
+      take: 15,
+      ...(id !== undefined && id !== null
+        ? { skip: 1, cursor: { maHoaDon: id } }
+        : {}),
+    });
+  }
+
 }

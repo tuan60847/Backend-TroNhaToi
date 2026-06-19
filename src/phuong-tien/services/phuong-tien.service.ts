@@ -36,4 +36,15 @@ export class PhuongTienService {
     const item = await this.findOne(id);
     return this.prisma.phuongTien.update({ where: { ID: item.ID }, data: { isDelete: true } });
   }
+  getAllLoadingBalance(id?: number) {
+    return this.prisma.phuongTien.findMany({
+      where: { isDelete: false },
+      orderBy: { ID: 'asc' },
+      take: 15,
+      ...(id !== undefined && id !== null
+        ? { skip: 1, cursor: { ID: id } }
+        : {}),
+    });
+  }
+
 }

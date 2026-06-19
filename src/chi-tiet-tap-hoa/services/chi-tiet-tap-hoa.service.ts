@@ -36,4 +36,15 @@ export class ChiTietTapHoaService {
     await this.findOne(id);
     return this.prisma.chiTietTapHoa.update({ where: { maChiTietHoaDon: id }, data: { isDelete: true } });
   }
+  getAllLoadingBalance(id?: number) {
+    return this.prisma.chiTietTapHoa.findMany({
+      where: { isDelete: false },
+      orderBy: { maChiTietHoaDon: 'asc' },
+      take: 15,
+      ...(id !== undefined && id !== null
+        ? { skip: 1, cursor: { maChiTietHoaDon: id } }
+        : {}),
+    });
+  }
+
 }

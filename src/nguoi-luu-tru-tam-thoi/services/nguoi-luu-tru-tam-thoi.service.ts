@@ -36,4 +36,15 @@ export class NguoiLuuTruTamThoiService {
     await this.findOne(id);
     return this.prisma.nguoiLuuTruTamThoi.update({ where: { idtt: id }, data: { isDelete: true } });
   }
+  getAllLoadingBalance(id?: number) {
+    return this.prisma.nguoiLuuTruTamThoi.findMany({
+      where: { isDelete: false },
+      orderBy: { idtt: 'asc' },
+      take: 15,
+      ...(id !== undefined && id !== null
+        ? { skip: 1, cursor: { idtt: id } }
+        : {}),
+    });
+  }
+
 }

@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { LapRapService } from '../services/lap-rap.service';
 import { CreateLapRapDto } from '../dto/create-lap-rap.dto';
 import { UpdateLapRapDto } from '../dto/update-lap-rap.dto';
@@ -22,6 +22,13 @@ export class LapRapController {
   @ApiOperation({ summary: 'Danh sách Lắp Ráp Thiết Bị' })
   findAll() {
     return this.lapRapService.findAll();
+  }
+
+  @Get('load-balance')
+  @ApiOperation({ summary: 'Lấy 15 phần tử (cuộn tải dần theo id)' })
+  @ApiQuery({ name: 'id', required: false, description: 'ID cuối cùng đã tải, bỏ trống để lấy 15 phần tử đầu' })
+  getAllLoadingBalance(@Query('id') id?: string) {
+    return this.lapRapService.getAllLoadingBalance(id !== undefined ? Number(id) : undefined);
   }
 
   @Get(':id')

@@ -39,4 +39,15 @@ export class HopDongService {
     await this.findOne(id);
     return this.prisma.hopDong.update({ where: { hopDongId: id }, data: { isDelete: true } });
   }
+  getAllLoadingBalance(id?: string) {
+    return this.prisma.hopDong.findMany({
+      where: { isDelete: false },
+      orderBy: { hopDongId: 'asc' },
+      take: 15,
+      ...(id !== undefined && id !== null
+        ? { skip: 1, cursor: { hopDongId: id } }
+        : {}),
+    });
+  }
+
 }

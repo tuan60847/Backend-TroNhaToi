@@ -42,4 +42,15 @@ export class NguoiThueService {
     await this.findOne(id);
     return this.prisma.nguoiThue.update({ where: { idnt: id }, data: { isDelete: true } });
   }
+  getAllLoadingBalance(id?: number) {
+    return this.prisma.nguoiThue.findMany({
+      where: { isDelete: false },
+      orderBy: { idnt: 'asc' },
+      take: 15,
+      ...(id !== undefined && id !== null
+        ? { skip: 1, cursor: { idnt: id } }
+        : {}),
+    });
+  }
+
 }

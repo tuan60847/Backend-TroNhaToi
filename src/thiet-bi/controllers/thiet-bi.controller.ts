@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { ThietBiService } from '../services/thiet-bi.service';
 import { CreateThietBiDto } from '../dto/create-thiet-bi.dto';
 import { UpdateThietBiDto } from '../dto/update-thiet-bi.dto';
@@ -22,6 +22,13 @@ export class ThietBiController {
   @ApiOperation({ summary: 'Danh sách Thiết Bị' })
   findAll() {
     return this.thietBiService.findAll();
+  }
+
+  @Get('load-balance')
+  @ApiOperation({ summary: 'Lấy 15 phần tử (cuộn tải dần theo id)' })
+  @ApiQuery({ name: 'id', required: false, description: 'ID cuối cùng đã tải, bỏ trống để lấy 15 phần tử đầu' })
+  getAllLoadingBalance(@Query('id') id?: string) {
+    return this.thietBiService.getAllLoadingBalance(id !== undefined ? Number(id) : undefined);
   }
 
   @Get(':thietBiId')

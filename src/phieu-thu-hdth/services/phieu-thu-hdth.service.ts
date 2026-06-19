@@ -36,4 +36,15 @@ export class PhieuThuHdThService {
     await this.findOne(id);
     return this.prisma.phieuThuHdTh.update({ where: { maPhieuThu: id }, data: { isDelete: true } });
   }
+  getAllLoadingBalance(id?: number) {
+    return this.prisma.phieuThuHdTh.findMany({
+      where: { isDelete: false },
+      orderBy: { maPhieuThu: 'asc' },
+      take: 15,
+      ...(id !== undefined && id !== null
+        ? { skip: 1, cursor: { maPhieuThu: id } }
+        : {}),
+    });
+  }
+
 }

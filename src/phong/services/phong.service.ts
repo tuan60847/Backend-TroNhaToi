@@ -36,4 +36,15 @@ export class PhongService {
     await this.findOne(id);
     return this.prisma.phong.update({ where: { phongId: id }, data: { isDelete: true } });
   }
+  getAllLoadingBalance(id?: number) {
+    return this.prisma.phong.findMany({
+      where: { isDelete: false },
+      orderBy: { phongId: 'asc' },
+      take: 15,
+      ...(id !== undefined && id !== null
+        ? { skip: 1, cursor: { phongId: id } }
+        : {}),
+    });
+  }
+
 }

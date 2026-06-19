@@ -34,4 +34,15 @@ export class HangHoaService {
     await this.findOne(id);
     return this.prisma.hangHoa.update({ where: { maHangHoa: id }, data: { isDelete: true } });
   }
+  getAllLoadingBalance(id?: number) {
+    return this.prisma.hangHoa.findMany({
+      where: { isDelete: false },
+      orderBy: { maHangHoa: 'asc' },
+      take: 15,
+      ...(id !== undefined && id !== null
+        ? { skip: 1, cursor: { maHangHoa: id } }
+        : {}),
+    });
+  }
+
 }

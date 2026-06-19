@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { ChiTietTapHoaService } from '../services/chi-tiet-tap-hoa.service';
 import { CreateChiTietTapHoaDto } from '../dto/create-chi-tiet-tap-hoa.dto';
 import { UpdateChiTietTapHoaDto } from '../dto/update-chi-tiet-tap-hoa.dto';
@@ -22,6 +22,13 @@ export class ChiTietTapHoaController {
   @ApiOperation({ summary: 'Danh sách Chi Tiết Tạp Hóa' })
   findAll() {
     return this.chiTietTapHoaService.findAll();
+  }
+
+  @Get('load-balance')
+  @ApiOperation({ summary: 'Lấy 15 phần tử (cuộn tải dần theo id)' })
+  @ApiQuery({ name: 'id', required: false, description: 'ID cuối cùng đã tải, bỏ trống để lấy 15 phần tử đầu' })
+  getAllLoadingBalance(@Query('id') id?: string) {
+    return this.chiTietTapHoaService.getAllLoadingBalance(id !== undefined ? Number(id) : undefined);
   }
 
   @Get(':maChiTietHoaDon')

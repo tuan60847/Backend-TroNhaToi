@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { HoaDonSuaChuaService } from '../services/hoa-don-sua-chua.service';
 import { CreateHoaDonSuaChuaDto } from '../dto/create-hoa-don-sua-chua.dto';
 import { UpdateHoaDonSuaChuaDto } from '../dto/update-hoa-don-sua-chua.dto';
@@ -22,6 +22,13 @@ export class HoaDonSuaChuaController {
   @ApiOperation({ summary: 'Danh sách Hóa Đơn Sửa Chữa' })
   findAll() {
     return this.hoaDonSuaChuaService.findAll();
+  }
+
+  @Get('load-balance')
+  @ApiOperation({ summary: 'Lấy 15 phần tử (cuộn tải dần theo id)' })
+  @ApiQuery({ name: 'id', required: false, description: 'ID cuối cùng đã tải, bỏ trống để lấy 15 phần tử đầu' })
+  getAllLoadingBalance(@Query('id') id?: string) {
+    return this.hoaDonSuaChuaService.getAllLoadingBalance(id !== undefined ? Number(id) : undefined);
   }
 
   @Get(':maHoaDonSc')

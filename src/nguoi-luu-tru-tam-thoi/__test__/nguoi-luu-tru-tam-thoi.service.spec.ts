@@ -152,4 +152,40 @@ describe('NguoiLuuTruTamThoiService', () => {
     });
   });
 
+  // ── getAllLoadingBalance ──────────────────────────────────────────
+  describe('getAllLoadingBalance()', () => {
+    it('lấy 15 phần tử đầu khi không truyền id', async () => {
+      mockPrisma.nguoiLuuTruTamThoi.findMany.mockResolvedValue([MOCK_ITEM]);
+      const result = await service.getAllLoadingBalance();
+      expect(result).toEqual([MOCK_ITEM]);
+      expect(mockPrisma.nguoiLuuTruTamThoi.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isDelete: false },
+          orderBy: { idtt: 'asc' },
+          take: 15,
+        }),
+      );
+    });
+
+    it('lấy 15 phần tử tiếp theo kể từ id truyền vào (cursor)', async () => {
+      mockPrisma.nguoiLuuTruTamThoi.findMany.mockResolvedValue([MOCK_ITEM]);
+      const result = await service.getAllLoadingBalance(VALID_ID as any);
+      expect(result).toEqual([MOCK_ITEM]);
+      expect(mockPrisma.nguoiLuuTruTamThoi.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isDelete: false },
+          orderBy: { idtt: 'asc' },
+          take: 15,
+          skip: 1,
+          cursor: { idtt: VALID_ID },
+        }),
+      );
+    });
+
+    it('trả về mảng rỗng khi không còn dữ liệu', async () => {
+      mockPrisma.nguoiLuuTruTamThoi.findMany.mockResolvedValue([]);
+      expect(await service.getAllLoadingBalance(INVALID_ID as any)).toEqual([]);
+    });
+  });
+
 });

@@ -36,4 +36,15 @@ export class LoaiPhongService {
     await this.findOne(id);
     return this.prisma.loaiPhong.update({ where: { maLoaiPhong: id }, data: { isDelete: true } });
   }
+  getAllLoadingBalance(id?: number) {
+    return this.prisma.loaiPhong.findMany({
+      where: { isDelete: false },
+      orderBy: { maLoaiPhong: 'asc' },
+      take: 15,
+      ...(id !== undefined && id !== null
+        ? { skip: 1, cursor: { maLoaiPhong: id } }
+        : {}),
+    });
+  }
+
 }

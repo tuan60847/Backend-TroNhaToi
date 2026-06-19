@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { PhuongTienService } from '../services/phuong-tien.service';
 import { CreatePhuongTienDto } from '../dto/create-phuong-tien.dto';
 import { UpdatePhuongTienDto } from '../dto/update-phuong-tien.dto';
@@ -22,6 +22,13 @@ export class PhuongTienController {
   @ApiOperation({ summary: 'Danh sách Phương Tiện' })
   findAll() {
     return this.phuongTienService.findAll();
+  }
+
+  @Get('load-balance')
+  @ApiOperation({ summary: 'Lấy 15 phần tử (cuộn tải dần theo id)' })
+  @ApiQuery({ name: 'id', required: false, description: 'ID cuối cùng đã tải, bỏ trống để lấy 15 phần tử đầu' })
+  getAllLoadingBalance(@Query('id') id?: string) {
+    return this.phuongTienService.getAllLoadingBalance(id !== undefined ? Number(id) : undefined);
   }
 
   @Get(':bienSo')

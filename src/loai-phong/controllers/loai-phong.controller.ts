@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { LoaiPhongService } from '../services/loai-phong.service';
 import { CreateLoaiPhongDto } from '../dto/create-loai-phong.dto';
 import { UpdateLoaiPhongDto } from '../dto/update-loai-phong.dto';
@@ -22,6 +22,13 @@ export class LoaiPhongController {
   @ApiOperation({ summary: 'Danh sách Loại Phòng' })
   findAll() {
     return this.loaiPhongService.findAll();
+  }
+
+  @Get('load-balance')
+  @ApiOperation({ summary: 'Lấy 15 phần tử (cuộn tải dần theo id)' })
+  @ApiQuery({ name: 'id', required: false, description: 'ID cuối cùng đã tải, bỏ trống để lấy 15 phần tử đầu' })
+  getAllLoadingBalance(@Query('id') id?: string) {
+    return this.loaiPhongService.getAllLoadingBalance(id !== undefined ? Number(id) : undefined);
   }
 
   @Get(':maLoaiPhong')

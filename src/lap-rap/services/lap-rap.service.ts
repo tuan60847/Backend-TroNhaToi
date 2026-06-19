@@ -36,4 +36,15 @@ export class LapRapService {
     await this.findOne(id);
     return this.prisma.lapRap.update({ where: { id: id }, data: { isDelete: true } });
   }
+  getAllLoadingBalance(id?: number) {
+    return this.prisma.lapRap.findMany({
+      where: { isDelete: false },
+      orderBy: { id: 'asc' },
+      take: 15,
+      ...(id !== undefined && id !== null
+        ? { skip: 1, cursor: { id: id } }
+        : {}),
+    });
+  }
+
 }

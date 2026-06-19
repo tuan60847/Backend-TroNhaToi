@@ -36,4 +36,15 @@ export class SuaChuaService {
     await this.findOne(id);
     return this.prisma.suaChua.update({ where: { id: id }, data: { isDelete: true } });
   }
+  getAllLoadingBalance(id?: number) {
+    return this.prisma.suaChua.findMany({
+      where: { isDelete: false },
+      orderBy: { id: 'asc' },
+      take: 15,
+      ...(id !== undefined && id !== null
+        ? { skip: 1, cursor: { id: id } }
+        : {}),
+    });
+  }
+
 }

@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { PhieuThuHdThService } from '../services/phieu-thu-hdth.service';
 import { CreatePhieuThuHdThDto } from '../dto/create-phieu-thu-hdth.dto';
 import { UpdatePhieuThuHdThDto } from '../dto/update-phieu-thu-hdth.dto';
@@ -22,6 +22,13 @@ export class PhieuThuHdThController {
   @ApiOperation({ summary: 'Danh sách Phiếu Thu HĐ Tạp Hóa' })
   findAll() {
     return this.phieuThuHdThService.findAll();
+  }
+
+  @Get('load-balance')
+  @ApiOperation({ summary: 'Lấy 15 phần tử (cuộn tải dần theo id)' })
+  @ApiQuery({ name: 'id', required: false, description: 'ID cuối cùng đã tải, bỏ trống để lấy 15 phần tử đầu' })
+  getAllLoadingBalance(@Query('id') id?: string) {
+    return this.phieuThuHdThService.getAllLoadingBalance(id !== undefined ? Number(id) : undefined);
   }
 
   @Get(':maPhieuThu')
