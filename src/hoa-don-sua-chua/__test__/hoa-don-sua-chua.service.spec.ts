@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HoaDonSuaChuaService } from '../services/hoa-don-sua-chua.service';
 import { PrismaService } from '../../prisma/prisma.service';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 // ─── Mock Prisma ─────────────────────────────────────────────────────
 const mockPrisma = {
@@ -150,6 +150,35 @@ describe('HoaDonSuaChuaService', () => {
         await service.remove(INVALID_ID as any);
       } catch {}
       expect(mockPrisma.hoaDonSuaChua.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── updateTrangThai ────────────────────────────────────────────────
+  describe('updateTrangThai()', () => {
+    it('cập nhật trạng thái khi chưa hoàn thành', async () => {
+      mockPrisma.hoaDonSuaChua.findFirst.mockResolvedValue(MOCK_ITEM);
+      mockPrisma.hoaDonSuaChua.update.mockResolvedValue({ ...MOCK_ITEM, trangThai: 2 });
+
+      const result = await service.updateTrangThai(VALID_ID as any, 2 as any);
+
+      expect(result).toEqual({ ...MOCK_ITEM, trangThai: 2 });
+      expect(mockPrisma.hoaDonSuaChua.update).toHaveBeenCalledWith(
+        { where: { maHoaDonSc: VALID_ID }, data: { trangThai: 2 } },
+      );
+    });
+
+    it('ném BadRequestException khi đã hoàn thành (trangThai=2)', async () => {
+      mockPrisma.hoaDonSuaChua.findFirst.mockResolvedValue({ ...MOCK_ITEM, trangThai: 2 });
+
+      await expect(service.updateTrangThai(VALID_ID as any, 1 as any))
+        .rejects.toThrow(BadRequestException);
+      expect(mockPrisma.hoaDonSuaChua.update).not.toHaveBeenCalled();
+    });
+
+    it('ném NotFoundException khi record không tồn tại', async () => {
+      mockPrisma.hoaDonSuaChua.findFirst.mockResolvedValue(null);
+      await expect(service.updateTrangThai(INVALID_ID as any, 1 as any))
+        .rejects.toThrow(NotFoundException);
     });
   });
 

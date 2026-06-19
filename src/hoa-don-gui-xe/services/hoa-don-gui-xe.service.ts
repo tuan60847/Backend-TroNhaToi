@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateHoaDonGuiXeDto } from '../dto/create-hoa-don-gui-xe.dto';
 import { UpdateHoaDonGuiXeDto } from '../dto/update-hoa-don-gui-xe.dto';
 import { SearchHoaDonGuiXeDto } from '../dto/search-hoa-don-gui-xe.dto';
+import { StatisticsHoaDonGuiXeDto } from '../dto/statistics-hoa-don-gui-xe.dto';
 
 @Injectable()
 export class HoaDonGuiXeService {
@@ -64,6 +65,38 @@ export class HoaDonGuiXeService {
     ]);
 
     return { total, data };
+  }
+
+  async statistics(req: StatisticsHoaDonGuiXeDto) {
+    const { thangNam } = req;
+    const where: any = { isDelete: false };
+    if (thangNam) where.thangNam = thangNam;
+
+    const [aggregate, byMonth] = await Promise.all([
+      this.prisma.hoaDonGuiXe.aggregate({
+        where,
+        _sum: { soTien: true },
+        _count: { maHoaDon: true },
+      }),
+      this.prisma.hoaDonGuiXe.groupBy({
+        by: ['thangNam'],
+        where,
+        _sum: { soTien: true },
+        _count: { maHoaDon: true },
+      }),
+    ]);
+
+    return {
+      totalInvoices: aggregate._count.maHoaDon,
+      totalRevenue: Number(aggregate._sum.soTien ?? 0),
+      byMonth: byMonth
+        .map((b) => ({
+          thangNam: b.thangNam,
+          totalInvoices: b._count.maHoaDon,
+          totalRevenue: Number(b._sum.soTien ?? 0),
+        }))
+        .sort((a, b) => (a.thangNam ?? '').localeCompare(b.thangNam ?? '')),
+    };
   }
 
   getAllLoadingBalance(id?: number) {

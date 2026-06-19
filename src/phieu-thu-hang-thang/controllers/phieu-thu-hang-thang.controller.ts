@@ -4,6 +4,7 @@ import { PhieuThuHangThangService } from '../services/phieu-thu-hang-thang.servi
 import { CreatePhieuThuHangThangDto } from '../dto/create-phieu-thu-hang-thang.dto';
 import { UpdatePhieuThuHangThangDto } from '../dto/update-phieu-thu-hang-thang.dto';
 import { SearchPhieuThuHangThangDto } from '../dto/search-phieu-thu-hang-thang.dto';
+import { StatisticsPhieuThuHangThangDto } from '../dto/statistics-phieu-thu-hang-thang.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Phiếu Thu Hàng Tháng')
@@ -29,6 +30,12 @@ export class PhieuThuHangThangController {
   @ApiOperation({ summary: 'Tìm kiếm theo mã hóa đơn phòng liên quan (có phân trang)' })
   search(@Query() dto: SearchPhieuThuHangThangDto) {
     return this.phieuThuHangThangService.search(dto);
+  }
+
+  @Get('statistics')
+  @ApiOperation({ summary: 'Thống kê Phiếu Thu Hàng Tháng (tổng tiền đã thu, số phiếu theo tháng)' })
+  statistics(@Query() dto: StatisticsPhieuThuHangThangDto) {
+    return this.phieuThuHangThangService.statistics(dto);
   }
 
   @Get('load-balance')

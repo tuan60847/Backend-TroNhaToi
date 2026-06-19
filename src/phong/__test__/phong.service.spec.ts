@@ -153,6 +153,35 @@ describe('PhongService', () => {
     });
   });
 
+  // ── updateTrangThai ────────────────────────────────────────────────
+  describe('updateTrangThai()', () => {
+    it('cập nhật trạng thái hợp lệ và trả về record đã sửa', async () => {
+      mockPrisma.phong.findFirst.mockResolvedValue(MOCK_ITEM);
+      mockPrisma.phong.update.mockResolvedValue({ ...MOCK_ITEM, trangThai: 2 });
+
+      const result = await service.updateTrangThai(VALID_ID as any, 2 as any);
+
+      expect(result).toEqual({ ...MOCK_ITEM, trangThai: 2 });
+      expect(mockPrisma.phong.update).toHaveBeenCalledWith(
+        { where: { phongId: VALID_ID }, data: { trangThai: 2 } },
+      );
+    });
+
+    it('ném NotFoundException khi record không tồn tại', async () => {
+      mockPrisma.phong.findFirst.mockResolvedValue(null);
+      await expect(service.updateTrangThai(INVALID_ID as any, 1 as any))
+        .rejects.toThrow(NotFoundException);
+    });
+
+    it('không gọi prisma.update khi record không tồn tại', async () => {
+      mockPrisma.phong.findFirst.mockResolvedValue(null);
+      try {
+        await service.updateTrangThai(INVALID_ID as any, 1 as any);
+      } catch {}
+      expect(mockPrisma.phong.update).not.toHaveBeenCalled();
+    });
+  });
+
   // ── search ─────────────────────────────────────────────────────────
   describe('search()', () => {
     it('tìm theo từ khóa q (OR trên tenPhong/moTa)', async () => {

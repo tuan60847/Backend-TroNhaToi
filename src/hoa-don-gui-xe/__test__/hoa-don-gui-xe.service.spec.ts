@@ -11,6 +11,8 @@ const mockPrisma = {
     create:    jest.fn(),
     update:    jest.fn(),
     count:     jest.fn(),
+    aggregate: jest.fn(),
+    groupBy:   jest.fn(),
   },
 };
 
@@ -181,6 +183,47 @@ describe('HoaDonGuiXeService', () => {
       expect(mockPrisma.hoaDonGuiXe.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { isDelete: false } }),
       );
+    });
+  });
+
+  // ── statistics ─────────────────────────────────────────────────────
+  describe('statistics()', () => {
+    it('tổng hợp doanh thu/số hóa đơn và nhóm theo thangNam', async () => {
+      mockPrisma.hoaDonGuiXe.aggregate.mockResolvedValue({
+        _sum: { soTien: 200000 },
+        _count: { maHoaDon: 2 },
+      });
+      mockPrisma.hoaDonGuiXe.groupBy.mockResolvedValue([
+        { thangNam: '01/2024', _sum: { soTien: 200000 }, _count: { maHoaDon: 2 } },
+      ]);
+
+      const result = await service.statistics({} as any);
+
+      expect(result).toEqual({
+        totalInvoices: 2,
+        totalRevenue: 200000,
+        byMonth: [{ thangNam: '01/2024', totalInvoices: 2, totalRevenue: 200000 }],
+      });
+    });
+
+    it('lọc theo thangNam khi truyền vào', async () => {
+      mockPrisma.hoaDonGuiXe.aggregate.mockResolvedValue({ _sum: { soTien: 0 }, _count: { maHoaDon: 0 } });
+      mockPrisma.hoaDonGuiXe.groupBy.mockResolvedValue([]);
+
+      await service.statistics({ thangNam: '01/2024' } as any);
+
+      expect(mockPrisma.hoaDonGuiXe.aggregate).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { isDelete: false, thangNam: '01/2024' } }),
+      );
+    });
+
+    it('trả về 0 và byMonth rỗng khi không có dữ liệu', async () => {
+      mockPrisma.hoaDonGuiXe.aggregate.mockResolvedValue({ _sum: { soTien: null }, _count: { maHoaDon: 0 } });
+      mockPrisma.hoaDonGuiXe.groupBy.mockResolvedValue([]);
+
+      const result = await service.statistics({} as any);
+
+      expect(result).toEqual({ totalInvoices: 0, totalRevenue: 0, byMonth: [] });
     });
   });
 

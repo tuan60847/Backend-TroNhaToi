@@ -4,6 +4,7 @@ import { HoaDonPhongService } from '../services/hoa-don-phong.service';
 import { CreateHoaDonPhongDto } from '../dto/create-hoa-don-phong.dto';
 import { UpdateHoaDonPhongDto } from '../dto/update-hoa-don-phong.dto';
 import { SearchHoaDonPhongDto } from '../dto/search-hoa-don-phong.dto';
+import { StatisticsHoaDonPhongDto } from '../dto/statistics-hoa-don-phong.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Hóa Đơn Phòng')
@@ -29,6 +30,12 @@ export class HoaDonPhongController {
   @ApiOperation({ summary: 'Tìm kiếm theo mã hóa đơn phòng (có phân trang)' })
   search(@Query() dto: SearchHoaDonPhongDto) {
     return this.hoaDonPhongService.search(dto);
+  }
+
+  @Get('statistics')
+  @ApiOperation({ summary: 'Thống kê Hóa Đơn Phòng (tổng doanh thu, số hóa đơn theo tháng)' })
+  statistics(@Query() dto: StatisticsHoaDonPhongDto) {
+    return this.hoaDonPhongService.statistics(dto);
   }
 
   @Get('load-balance')

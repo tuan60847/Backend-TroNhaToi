@@ -4,6 +4,7 @@ import { HoaDonTapHoaService } from '../services/hoa-don-tap-hoa.service';
 import { CreateHoaDonTapHoaDto } from '../dto/create-hoa-don-tap-hoa.dto';
 import { UpdateHoaDonTapHoaDto } from '../dto/update-hoa-don-tap-hoa.dto';
 import { SearchHoaDonTapHoaDto } from '../dto/search-hoa-don-tap-hoa.dto';
+import { StatisticsHoaDonTapHoaDto } from '../dto/statistics-hoa-don-tap-hoa.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Hóa Đơn Tạp Hóa')
@@ -29,6 +30,12 @@ export class HoaDonTapHoaController {
   @ApiOperation({ summary: 'Tìm kiếm theo mã hóa đơn tạp hóa (có phân trang)' })
   search(@Query() dto: SearchHoaDonTapHoaDto) {
     return this.hoaDonTapHoaService.search(dto);
+  }
+
+  @Get('statistics')
+  @ApiOperation({ summary: 'Thống kê Hóa Đơn Tạp Hóa (tổng doanh thu, số hóa đơn theo tháng)' })
+  statistics(@Query() dto: StatisticsHoaDonTapHoaDto) {
+    return this.hoaDonTapHoaService.statistics(dto);
   }
 
   @Get('load-balance')

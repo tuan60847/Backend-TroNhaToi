@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePhieuThuHangThangDto } from '../dto/create-phieu-thu-hang-thang.dto';
 import { UpdatePhieuThuHangThangDto } from '../dto/update-phieu-thu-hang-thang.dto';
 import { SearchPhieuThuHangThangDto } from '../dto/search-phieu-thu-hang-thang.dto';
+import { StatisticsPhieuThuHangThangDto } from '../dto/statistics-phieu-thu-hang-thang.dto';
 
 @Injectable()
 export class PhieuThuHangThangService {
@@ -56,6 +57,47 @@ export class PhieuThuHangThangService {
     ]);
 
     return { total, data };
+  }
+
+  async statistics(req: StatisticsPhieuThuHangThangDto) {
+    const { from, to } = req;
+    const where: any = { isDelete: false };
+
+    if (from || to) {
+      where.ngayThu = {};
+      if (from) where.ngayThu.gte = new Date(from);
+      if (to) where.ngayThu.lte = new Date(to);
+    }
+
+    const [aggregate, items] = await Promise.all([
+      this.prisma.phieuThuHangThang.aggregate({
+        where,
+        _sum: { soTien: true },
+        _count: { maPhieuThu: true },
+      }),
+      this.prisma.phieuThuHangThang.findMany({
+        where,
+        select: { ngayThu: true, soTien: true },
+      }),
+    ]);
+
+    const byMonthMap = new Map<string, { totalReceipts: number; totalCollected: number }>();
+    for (const item of items) {
+      if (!item.ngayThu) continue;
+      const month = item.ngayThu.toISOString().slice(0, 7);
+      const cur = byMonthMap.get(month) ?? { totalReceipts: 0, totalCollected: 0 };
+      cur.totalReceipts += 1;
+      cur.totalCollected += Number(item.soTien ?? 0);
+      byMonthMap.set(month, cur);
+    }
+
+    return {
+      totalReceipts: aggregate._count.maPhieuThu,
+      totalCollected: Number(aggregate._sum.soTien ?? 0),
+      byMonth: Array.from(byMonthMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([month, v]) => ({ month, ...v })),
+    };
   }
 
   getAllLoadingBalance(id?: number) {

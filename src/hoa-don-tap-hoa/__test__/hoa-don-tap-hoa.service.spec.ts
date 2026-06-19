@@ -11,6 +11,7 @@ const mockPrisma = {
     create:    jest.fn(),
     update:    jest.fn(),
     count:     jest.fn(),
+    aggregate: jest.fn(),
   },
 };
 
@@ -192,6 +193,50 @@ describe('HoaDonTapHoaService', () => {
       expect(mockPrisma.hoaDonTapHoa.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { isDelete: false } }),
       );
+    });
+  });
+
+  // ── statistics ─────────────────────────────────────────────────────
+  describe('statistics()', () => {
+    it('tổng hợp doanh thu/số hóa đơn và nhóm theo tháng', async () => {
+      mockPrisma.hoaDonTapHoa.aggregate.mockResolvedValue({
+        _sum: { tongTien: 150000 },
+        _count: { maHoaDon: 2 },
+      });
+      mockPrisma.hoaDonTapHoa.findMany.mockResolvedValue([
+        { ngayBan: new Date('2024-01-15'), tongTien: 50000 },
+        { ngayBan: new Date('2024-01-20'), tongTien: 100000 },
+      ]);
+
+      const result = await service.statistics({} as any);
+
+      expect(result).toEqual({
+        totalInvoices: 2,
+        totalRevenue: 150000,
+        byMonth: [{ month: '2024-01', totalInvoices: 2, totalRevenue: 150000 }],
+      });
+    });
+
+    it('lọc theo khoảng ngày from/to', async () => {
+      mockPrisma.hoaDonTapHoa.aggregate.mockResolvedValue({ _sum: { tongTien: 0 }, _count: { maHoaDon: 0 } });
+      mockPrisma.hoaDonTapHoa.findMany.mockResolvedValue([]);
+
+      await service.statistics({ from: '2024-01-01', to: '2024-01-31' } as any);
+
+      expect(mockPrisma.hoaDonTapHoa.aggregate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isDelete: false, ngayBan: { gte: new Date('2024-01-01'), lte: new Date('2024-01-31') } },
+        }),
+      );
+    });
+
+    it('trả về 0 và byMonth rỗng khi không có dữ liệu', async () => {
+      mockPrisma.hoaDonTapHoa.aggregate.mockResolvedValue({ _sum: { tongTien: null }, _count: { maHoaDon: 0 } });
+      mockPrisma.hoaDonTapHoa.findMany.mockResolvedValue([]);
+
+      const result = await service.statistics({} as any);
+
+      expect(result).toEqual({ totalInvoices: 0, totalRevenue: 0, byMonth: [] });
     });
   });
 

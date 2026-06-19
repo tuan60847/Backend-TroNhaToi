@@ -11,6 +11,8 @@ const mockPrisma = {
     create:    jest.fn(),
     update:    jest.fn(),
     count:     jest.fn(),
+    aggregate: jest.fn(),
+    groupBy:   jest.fn(),
   },
 };
 
@@ -192,6 +194,50 @@ describe('HoaDonPhongService', () => {
       expect(mockPrisma.hoaDonPhong.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { isDelete: false } }),
       );
+    });
+  });
+
+  // ── statistics ─────────────────────────────────────────────────────
+  describe('statistics()', () => {
+    it('tổng hợp doanh thu/số hóa đơn và nhóm theo thangNam', async () => {
+      mockPrisma.hoaDonPhong.aggregate.mockResolvedValue({
+        _sum: { soTien: 5000000 },
+        _count: { maHoaDon: 2 },
+      });
+      mockPrisma.hoaDonPhong.groupBy.mockResolvedValue([
+        { thangNam: '01/2024', _sum: { soTien: 5000000 }, _count: { maHoaDon: 2 } },
+      ]);
+
+      const result = await service.statistics({} as any);
+
+      expect(result).toEqual({
+        totalInvoices: 2,
+        totalRevenue: 5000000,
+        byMonth: [{ thangNam: '01/2024', totalInvoices: 2, totalRevenue: 5000000 }],
+      });
+    });
+
+    it('lọc theo thangNam khi truyền vào', async () => {
+      mockPrisma.hoaDonPhong.aggregate.mockResolvedValue({ _sum: { soTien: 0 }, _count: { maHoaDon: 0 } });
+      mockPrisma.hoaDonPhong.groupBy.mockResolvedValue([]);
+
+      await service.statistics({ thangNam: '01/2024' } as any);
+
+      expect(mockPrisma.hoaDonPhong.aggregate).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { isDelete: false, thangNam: '01/2024' } }),
+      );
+      expect(mockPrisma.hoaDonPhong.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({ by: ['thangNam'], where: { isDelete: false, thangNam: '01/2024' } }),
+      );
+    });
+
+    it('trả về 0 và byMonth rỗng khi không có dữ liệu', async () => {
+      mockPrisma.hoaDonPhong.aggregate.mockResolvedValue({ _sum: { soTien: null }, _count: { maHoaDon: 0 } });
+      mockPrisma.hoaDonPhong.groupBy.mockResolvedValue([]);
+
+      const result = await service.statistics({} as any);
+
+      expect(result).toEqual({ totalInvoices: 0, totalRevenue: 0, byMonth: [] });
     });
   });
 

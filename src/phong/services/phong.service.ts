@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePhongDto } from '../dto/create-phong.dto';
 import { UpdatePhongDto } from '../dto/update-phong.dto';
 import { SearchPhongDto } from '../dto/search-phong.dto';
+import { TrangThaiPhong } from '../constants/trang-thai-phong.enum';
 
 @Injectable()
 export class PhongService {
@@ -67,6 +68,11 @@ export class PhongService {
     ]);
 
     return { total, data };
+  }
+
+  async updateTrangThai(id: number, trangThai: TrangThaiPhong) {
+    await this.findOne(id);
+    return this.prisma.phong.update({ where: { phongId: id }, data: { trangThai } });
   }
 
   searchByName(ten: string) {

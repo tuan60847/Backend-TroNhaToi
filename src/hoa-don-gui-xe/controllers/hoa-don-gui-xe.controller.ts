@@ -4,6 +4,7 @@ import { HoaDonGuiXeService } from '../services/hoa-don-gui-xe.service';
 import { CreateHoaDonGuiXeDto } from '../dto/create-hoa-don-gui-xe.dto';
 import { UpdateHoaDonGuiXeDto } from '../dto/update-hoa-don-gui-xe.dto';
 import { SearchHoaDonGuiXeDto } from '../dto/search-hoa-don-gui-xe.dto';
+import { StatisticsHoaDonGuiXeDto } from '../dto/statistics-hoa-don-gui-xe.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Hóa Đơn Gửi Xe')
@@ -29,6 +30,12 @@ export class HoaDonGuiXeController {
   @ApiOperation({ summary: 'Tìm kiếm Hóa Đơn Gửi Xe (theo tháng/năm, lọc trạng thái/phương tiện, có phân trang)' })
   search(@Query() dto: SearchHoaDonGuiXeDto) {
     return this.hoaDonGuiXeService.search(dto);
+  }
+
+  @Get('statistics')
+  @ApiOperation({ summary: 'Thống kê Hóa Đơn Gửi Xe (tổng doanh thu, số hóa đơn theo tháng)' })
+  statistics(@Query() dto: StatisticsHoaDonGuiXeDto) {
+    return this.hoaDonGuiXeService.statistics(dto);
   }
 
   @Get('load-balance')

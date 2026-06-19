@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateHoaDonSuaChuaDto } from '../dto/create-hoa-don-sua-chua.dto';
 import { UpdateHoaDonSuaChuaDto } from '../dto/update-hoa-don-sua-chua.dto';
 import { SearchHoaDonSuaChuaDto } from '../dto/search-hoa-don-sua-chua.dto';
+import { TrangThaiHoaDonSuaChua } from '../constants/trang-thai-hoa-don-sua-chua.enum';
 
 @Injectable()
 export class HoaDonSuaChuaService {
@@ -64,6 +65,14 @@ export class HoaDonSuaChuaService {
     ]);
 
     return { total, data };
+  }
+
+  async updateTrangThai(id: number, trangThai: TrangThaiHoaDonSuaChua) {
+    const item = await this.findOne(id);
+    if (item.trangThai === TrangThaiHoaDonSuaChua.HOAN_THANH) {
+      throw new BadRequestException('Hóa đơn sửa chữa đã hoàn thành, không thể đổi trạng thái');
+    }
+    return this.prisma.hoaDonSuaChua.update({ where: { maHoaDonSc: id }, data: { trangThai } });
   }
 
   getAllLoadingBalance(id?: number) {
