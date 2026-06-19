@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestj
 import { HangHoaService } from '../services/hang-hoa.service';
 import { CreateHangHoaDto } from '../dto/create-hang-hoa.dto';
 import { UpdateHangHoaDto } from '../dto/update-hang-hoa.dto';
+import { SearchHangHoaDto } from '../dto/search-hang-hoa.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Hàng Hóa')
@@ -22,6 +23,19 @@ export class HangHoaController {
   @ApiOperation({ summary: 'Danh sách Hàng Hóa' })
   findAll() {
     return this.hangHoaService.findAll();
+  }
+
+  @Get('search')
+  @ApiOperation({ summary: 'Tìm kiếm Hàng Hóa (theo tên, có phân trang)' })
+  search(@Query() dto: SearchHangHoaDto) {
+    return this.hangHoaService.search(dto);
+  }
+
+  @Get('search-by-name')
+  @ApiOperation({ summary: 'Tìm kiếm Hàng Hóa theo tên' })
+  @ApiQuery({ name: 'ten', required: true, description: 'Tên cần tìm' })
+  searchByName(@Query('ten') ten: string) {
+    return this.hangHoaService.searchByName(ten);
   }
 
   @Get('load-balance')

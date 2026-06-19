@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateNguoiThueDto } from '../dto/create-nguoi-thue.dto';
 import { UpdateNguoiThueDto } from '../dto/update-nguoi-thue.dto';
+import { SearchNguoiThueDto } from '../dto/search-nguoi-thue.dto';
 
 @Injectable()
 export class NguoiThueService {
@@ -42,6 +43,42 @@ export class NguoiThueService {
     await this.findOne(id);
     return this.prisma.nguoiThue.update({ where: { idnt: id }, data: { isDelete: true } });
   }
+  async search(req: SearchNguoiThueDto) {
+    const { q, gioiTinh, limit = 10, offset = 0, sortBy = 'idnt', sort = 'desc' } = req;
+    const where: any = { isDelete: false };
+
+    if (q) {
+      where.OR = [
+        { hoTen: { contains: q } },
+        { cccd: { contains: q } },
+        { sdt: { contains: q } },
+        { queQuan: { contains: q } },
+      ];
+    }
+
+    if (gioiTinh !== undefined) {
+      where.gioiTinh = `${gioiTinh}` === 'true';
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.nguoiThue.findMany({
+        where,
+        orderBy: { [sortBy]: sort },
+        take: Number(limit),
+        skip: Number(offset),
+      }),
+      this.prisma.nguoiThue.count({ where }),
+    ]);
+
+    return { total, data };
+  }
+
+  searchByName(ten: string) {
+    return this.prisma.nguoiThue.findMany({
+      where: { hoTen: { contains: ten }, isDelete: false },
+    });
+  }
+
   getAllLoadingBalance(id?: number) {
     return this.prisma.nguoiThue.findMany({
       where: { isDelete: false },

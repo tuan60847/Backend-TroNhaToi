@@ -10,6 +10,7 @@ const mockPrisma = {
     findFirst: jest.fn(),
     create:    jest.fn(),
     update:    jest.fn(),
+    count:     jest.fn(),
   },
 };
 
@@ -149,6 +150,48 @@ describe('ChiTietTapHoaService', () => {
         await service.remove(INVALID_ID as any);
       } catch {}
       expect(mockPrisma.chiTietTapHoa.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── search ─────────────────────────────────────────────────────────
+  describe('search()', () => {
+    it('tìm theo mã (contains) và trả về { total, data }', async () => {
+      mockPrisma.chiTietTapHoa.findMany.mockResolvedValue([MOCK_ITEM]);
+      mockPrisma.chiTietTapHoa.count.mockResolvedValue(1);
+
+      const result = await service.search({ ma: 'TH00000001A' } as any);
+
+      expect(result).toEqual({ total: 1, data: [MOCK_ITEM] });
+      expect(mockPrisma.chiTietTapHoa.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isDelete: false, maHoaDon: { contains: 'TH00000001A' } },
+          orderBy: { maChiTietHoaDon: 'desc' },
+          take: 10,
+          skip: 0,
+        }),
+      );
+    });
+
+    it('áp dụng limit/offset/sortBy/sort tùy chỉnh', async () => {
+      mockPrisma.chiTietTapHoa.findMany.mockResolvedValue([]);
+      mockPrisma.chiTietTapHoa.count.mockResolvedValue(0);
+
+      await service.search({ limit: 5, offset: 10, sortBy: 'maChiTietHoaDon', sort: 'asc' } as any);
+
+      expect(mockPrisma.chiTietTapHoa.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: { maChiTietHoaDon: 'asc' }, take: 5, skip: 10 }),
+      );
+    });
+
+    it('không truyền ma thì chỉ lọc isDelete: false', async () => {
+      mockPrisma.chiTietTapHoa.findMany.mockResolvedValue([MOCK_ITEM]);
+      mockPrisma.chiTietTapHoa.count.mockResolvedValue(1);
+
+      await service.search({} as any);
+
+      expect(mockPrisma.chiTietTapHoa.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { isDelete: false } }),
+      );
     });
   });
 

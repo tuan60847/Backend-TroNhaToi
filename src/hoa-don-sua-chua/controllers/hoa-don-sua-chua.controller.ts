@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestj
 import { HoaDonSuaChuaService } from '../services/hoa-don-sua-chua.service';
 import { CreateHoaDonSuaChuaDto } from '../dto/create-hoa-don-sua-chua.dto';
 import { UpdateHoaDonSuaChuaDto } from '../dto/update-hoa-don-sua-chua.dto';
+import { SearchHoaDonSuaChuaDto } from '../dto/search-hoa-don-sua-chua.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Hóa Đơn Sửa Chữa')
@@ -22,6 +23,12 @@ export class HoaDonSuaChuaController {
   @ApiOperation({ summary: 'Danh sách Hóa Đơn Sửa Chữa' })
   findAll() {
     return this.hoaDonSuaChuaService.findAll();
+  }
+
+  @Get('search')
+  @ApiOperation({ summary: 'Tìm kiếm Hóa Đơn Sửa Chữa (lọc trạng thái/loại sửa, có phân trang)' })
+  search(@Query() dto: SearchHoaDonSuaChuaDto) {
+    return this.hoaDonSuaChuaService.search(dto);
   }
 
   @Get('load-balance')

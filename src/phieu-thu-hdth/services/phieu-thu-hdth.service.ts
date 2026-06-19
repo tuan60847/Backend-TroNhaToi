@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePhieuThuHdThDto } from '../dto/create-phieu-thu-hdth.dto';
 import { UpdatePhieuThuHdThDto } from '../dto/update-phieu-thu-hdth.dto';
+import { SearchPhieuThuHdThDto } from '../dto/search-phieu-thu-hdth.dto';
 
 @Injectable()
 export class PhieuThuHdThService {
@@ -36,6 +37,27 @@ export class PhieuThuHdThService {
     await this.findOne(id);
     return this.prisma.phieuThuHdTh.update({ where: { maPhieuThu: id }, data: { isDelete: true } });
   }
+  async search(req: SearchPhieuThuHdThDto) {
+    const { ma, limit = 10, offset = 0, sortBy = 'maPhieuThu', sort = 'desc' } = req;
+    const where: any = { isDelete: false };
+
+    if (ma) {
+      where.maHoaDon = { contains: ma };
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.phieuThuHdTh.findMany({
+        where,
+        orderBy: { [sortBy]: sort },
+        take: Number(limit),
+        skip: Number(offset),
+      }),
+      this.prisma.phieuThuHdTh.count({ where }),
+    ]);
+
+    return { total, data };
+  }
+
   getAllLoadingBalance(id?: number) {
     return this.prisma.phieuThuHdTh.findMany({
       where: { isDelete: false },

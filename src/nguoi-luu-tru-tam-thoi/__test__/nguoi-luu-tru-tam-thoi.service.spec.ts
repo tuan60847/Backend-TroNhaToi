@@ -10,6 +10,7 @@ const mockPrisma = {
     findFirst: jest.fn(),
     create:    jest.fn(),
     update:    jest.fn(),
+    count:     jest.fn(),
   },
 };
 
@@ -149,6 +150,62 @@ describe('NguoiLuuTruTamThoiService', () => {
         await service.remove(INVALID_ID as any);
       } catch {}
       expect(mockPrisma.nguoiLuuTruTamThoi.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── search ─────────────────────────────────────────────────────────
+  describe('search()', () => {
+    it('tìm theo từ khóa q (OR trên hoTen/cccd/sdt/queQuan)', async () => {
+      mockPrisma.nguoiLuuTruTamThoi.findMany.mockResolvedValue([MOCK_ITEM]);
+      mockPrisma.nguoiLuuTruTamThoi.count.mockResolvedValue(1);
+
+      const result = await service.search({ q: 'Trần' } as any);
+
+      expect(result).toEqual({ total: 1, data: [MOCK_ITEM] });
+      expect(mockPrisma.nguoiLuuTruTamThoi.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            isDelete: false,
+            OR: [
+              { hoTen: { contains: 'Trần' } },
+              { cccd: { contains: 'Trần' } },
+              { sdt: { contains: 'Trần' } },
+              { queQuan: { contains: 'Trần' } },
+            ],
+          },
+          orderBy: { idtt: 'desc' },
+          take: 10,
+          skip: 0,
+        }),
+      );
+    });
+
+    it('không truyền q thì chỉ lọc isDelete: false', async () => {
+      mockPrisma.nguoiLuuTruTamThoi.findMany.mockResolvedValue([]);
+      mockPrisma.nguoiLuuTruTamThoi.count.mockResolvedValue(0);
+
+      await service.search({} as any);
+
+      expect(mockPrisma.nguoiLuuTruTamThoi.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { isDelete: false } }),
+      );
+    });
+  });
+
+  // ── searchByName ───────────────────────────────────────────────────
+  describe('searchByName()', () => {
+    it('tìm theo tên (hoTen contains) và trả về mảng', async () => {
+      mockPrisma.nguoiLuuTruTamThoi.findMany.mockResolvedValue([MOCK_ITEM]);
+      const result = await service.searchByName('Trần');
+      expect(result).toEqual([MOCK_ITEM]);
+      expect(mockPrisma.nguoiLuuTruTamThoi.findMany).toHaveBeenCalledWith({
+        where: { hoTen: { contains: 'Trần' }, isDelete: false },
+      });
+    });
+
+    it('trả về mảng rỗng khi không tìm thấy', async () => {
+      mockPrisma.nguoiLuuTruTamThoi.findMany.mockResolvedValue([]);
+      expect(await service.searchByName('Không tồn tại')).toEqual([]);
     });
   });
 

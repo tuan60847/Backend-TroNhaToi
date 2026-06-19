@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestj
 import { NguoiThueService } from '../services/nguoi-thue.service';
 import { CreateNguoiThueDto } from '../dto/create-nguoi-thue.dto';
 import { UpdateNguoiThueDto } from '../dto/update-nguoi-thue.dto';
+import { SearchNguoiThueDto } from '../dto/search-nguoi-thue.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Người Thuê')
@@ -29,6 +30,19 @@ export class NguoiThueController {
   @ApiOperation({ summary: 'Danh sách tất cả Người Thuê (bao gồm người mới thêm chưa có hợp đồng)' })
   findAllNguoiThue() {
     return this.nguoiThueService.findAllNguoiThue();
+  }
+
+  @Get('search')
+  @ApiOperation({ summary: 'Tìm kiếm Người Thuê (theo họ tên/CCCD/SĐT/quê quán, có phân trang)' })
+  search(@Query() dto: SearchNguoiThueDto) {
+    return this.nguoiThueService.search(dto);
+  }
+
+  @Get('search-by-name')
+  @ApiOperation({ summary: 'Tìm kiếm Người Thuê theo tên' })
+  @ApiQuery({ name: 'ten', required: true, description: 'Tên cần tìm' })
+  searchByName(@Query('ten') ten: string) {
+    return this.nguoiThueService.searchByName(ten);
   }
 
   @Get('load-balance')

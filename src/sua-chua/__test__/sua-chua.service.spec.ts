@@ -10,6 +10,7 @@ const mockPrisma = {
     findFirst: jest.fn(),
     create:    jest.fn(),
     update:    jest.fn(),
+    count:     jest.fn(),
   },
 };
 
@@ -149,6 +150,37 @@ describe('SuaChuaService', () => {
         await service.remove(INVALID_ID as any);
       } catch {}
       expect(mockPrisma.suaChua.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── search ─────────────────────────────────────────────────────────
+  describe('search()', () => {
+    it('tìm theo từ khóa q (nguyenNhan) và lọc phongId/thietBiId', async () => {
+      mockPrisma.suaChua.findMany.mockResolvedValue([MOCK_ITEM]);
+      mockPrisma.suaChua.count.mockResolvedValue(1);
+
+      const result = await service.search({ q: 'quạt', phongId: 1, thietBiId: 2 } as any);
+
+      expect(result).toEqual({ total: 1, data: [MOCK_ITEM] });
+      expect(mockPrisma.suaChua.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isDelete: false, nguyenNhan: { contains: 'quạt' }, phongId: 1, thietBiId: 2 },
+          orderBy: { id: 'desc' },
+          take: 10,
+          skip: 0,
+        }),
+      );
+    });
+
+    it('không truyền gì thì chỉ lọc isDelete: false', async () => {
+      mockPrisma.suaChua.findMany.mockResolvedValue([]);
+      mockPrisma.suaChua.count.mockResolvedValue(0);
+
+      await service.search({} as any);
+
+      expect(mockPrisma.suaChua.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { isDelete: false } }),
+      );
     });
   });
 

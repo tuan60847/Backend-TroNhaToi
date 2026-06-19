@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestj
 import { LoaiPhongService } from '../services/loai-phong.service';
 import { CreateLoaiPhongDto } from '../dto/create-loai-phong.dto';
 import { UpdateLoaiPhongDto } from '../dto/update-loai-phong.dto';
+import { SearchLoaiPhongDto } from '../dto/search-loai-phong.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Loại Phòng')
@@ -22,6 +23,19 @@ export class LoaiPhongController {
   @ApiOperation({ summary: 'Danh sách Loại Phòng' })
   findAll() {
     return this.loaiPhongService.findAll();
+  }
+
+  @Get('search')
+  @ApiOperation({ summary: 'Tìm kiếm Loại Phòng (theo tên, có phân trang)' })
+  search(@Query() dto: SearchLoaiPhongDto) {
+    return this.loaiPhongService.search(dto);
+  }
+
+  @Get('search-by-name')
+  @ApiOperation({ summary: 'Tìm kiếm Loại Phòng theo tên' })
+  @ApiQuery({ name: 'ten', required: true, description: 'Tên cần tìm' })
+  searchByName(@Query('ten') ten: string) {
+    return this.loaiPhongService.searchByName(ten);
   }
 
   @Get('load-balance')

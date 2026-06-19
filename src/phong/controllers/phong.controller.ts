@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestj
 import { PhongService } from '../services/phong.service';
 import { CreatePhongDto } from '../dto/create-phong.dto';
 import { UpdatePhongDto } from '../dto/update-phong.dto';
+import { SearchPhongDto } from '../dto/search-phong.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Phòng')
@@ -22,6 +23,19 @@ export class PhongController {
   @ApiOperation({ summary: 'Danh sách Phòng' })
   findAll() {
     return this.phongService.findAll();
+  }
+
+  @Get('search')
+  @ApiOperation({ summary: 'Tìm kiếm Phòng (theo tên/mô tả, lọc trạng thái/loại phòng, có phân trang)' })
+  search(@Query() dto: SearchPhongDto) {
+    return this.phongService.search(dto);
+  }
+
+  @Get('search-by-name')
+  @ApiOperation({ summary: 'Tìm kiếm Phòng theo tên' })
+  @ApiQuery({ name: 'ten', required: true, description: 'Tên cần tìm' })
+  searchByName(@Query('ten') ten: string) {
+    return this.phongService.searchByName(ten);
   }
 
   @Get('load-balance')

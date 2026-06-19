@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateHangHoaDto } from '../dto/create-hang-hoa.dto';
 import { UpdateHangHoaDto } from '../dto/update-hang-hoa.dto';
+import { SearchHangHoaDto } from '../dto/search-hang-hoa.dto';
 
 @Injectable()
 export class HangHoaService {
@@ -34,6 +35,33 @@ export class HangHoaService {
     await this.findOne(id);
     return this.prisma.hangHoa.update({ where: { maHangHoa: id }, data: { isDelete: true } });
   }
+  async search(req: SearchHangHoaDto) {
+    const { q, limit = 10, offset = 0, sortBy = 'maHangHoa', sort = 'desc' } = req;
+    const where: any = { isDelete: false };
+
+    if (q) {
+      where.tenHangHoa = { contains: q };
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.hangHoa.findMany({
+        where,
+        orderBy: { [sortBy]: sort },
+        take: Number(limit),
+        skip: Number(offset),
+      }),
+      this.prisma.hangHoa.count({ where }),
+    ]);
+
+    return { total, data };
+  }
+
+  searchByName(ten: string) {
+    return this.prisma.hangHoa.findMany({
+      where: { tenHangHoa: { contains: ten }, isDelete: false },
+    });
+  }
+
   getAllLoadingBalance(id?: number) {
     return this.prisma.hangHoa.findMany({
       where: { isDelete: false },

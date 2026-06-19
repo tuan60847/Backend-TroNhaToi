@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateThietBiDto } from '../dto/create-thiet-bi.dto';
 import { UpdateThietBiDto } from '../dto/update-thiet-bi.dto';
+import { SearchThietBiDto } from '../dto/search-thiet-bi.dto';
 
 @Injectable()
 export class ThietBiService {
@@ -36,6 +37,40 @@ export class ThietBiService {
     await this.findOne(id);
     return this.prisma.thietBi.update({ where: { thietBiId: id }, data: { isDelete: true } });
   }
+  async search(req: SearchThietBiDto) {
+    const { q, trangThai, limit = 10, offset = 0, sortBy = 'thietBiId', sort = 'desc' } = req;
+    const where: any = { isDelete: false };
+
+    if (q) {
+      where.OR = [
+        { tenThietBi: { contains: q } },
+        { loai: { contains: q } },
+      ];
+    }
+
+    if (trangThai !== undefined) {
+      where.trangThai = trangThai;
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.thietBi.findMany({
+        where,
+        orderBy: { [sortBy]: sort },
+        take: Number(limit),
+        skip: Number(offset),
+      }),
+      this.prisma.thietBi.count({ where }),
+    ]);
+
+    return { total, data };
+  }
+
+  searchByName(ten: string) {
+    return this.prisma.thietBi.findMany({
+      where: { tenThietBi: { contains: ten }, isDelete: false },
+    });
+  }
+
   getAllLoadingBalance(id?: number) {
     return this.prisma.thietBi.findMany({
       where: { isDelete: false },

@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestj
 import { PhuongTienService } from '../services/phuong-tien.service';
 import { CreatePhuongTienDto } from '../dto/create-phuong-tien.dto';
 import { UpdatePhuongTienDto } from '../dto/update-phuong-tien.dto';
+import { SearchPhuongTienDto } from '../dto/search-phuong-tien.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Phương Tiện')
@@ -22,6 +23,12 @@ export class PhuongTienController {
   @ApiOperation({ summary: 'Danh sách Phương Tiện' })
   findAll() {
     return this.phuongTienService.findAll();
+  }
+
+  @Get('search')
+  @ApiOperation({ summary: 'Tìm kiếm theo biển số xe (có phân trang)' })
+  search(@Query() dto: SearchPhuongTienDto) {
+    return this.phuongTienService.search(dto);
   }
 
   @Get('load-balance')

@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestj
 import { HopDongService } from '../services/hop-dong.service';
 import { CreateHopDongDto } from '../dto/create-hop-dong.dto';
 import { UpdateHopDongDto } from '../dto/update-hop-dong.dto';
+import { SearchHopDongDto } from '../dto/search-hop-dong.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Hợp Đồng')
@@ -22,6 +23,12 @@ export class HopDongController {
   @ApiOperation({ summary: 'Danh sách Hợp Đồng' })
   findAll() {
     return this.hopDongService.findAll();
+  }
+
+  @Get('search')
+  @ApiOperation({ summary: 'Tìm kiếm theo mã hợp đồng (có phân trang)' })
+  search(@Query() dto: SearchHopDongDto) {
+    return this.hopDongService.search(dto);
   }
 
   @Get('load-balance')

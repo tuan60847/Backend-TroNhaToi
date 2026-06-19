@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateHoaDonSuaChuaDto } from '../dto/create-hoa-don-sua-chua.dto';
 import { UpdateHoaDonSuaChuaDto } from '../dto/update-hoa-don-sua-chua.dto';
+import { SearchHoaDonSuaChuaDto } from '../dto/search-hoa-don-sua-chua.dto';
 
 @Injectable()
 export class HoaDonSuaChuaService {
@@ -36,6 +37,35 @@ export class HoaDonSuaChuaService {
     await this.findOne(id);
     return this.prisma.hoaDonSuaChua.update({ where: { maHoaDonSc: id }, data: { isDelete: true } });
   }
+  async search(req: SearchHoaDonSuaChuaDto) {
+    const { trangThai, loaiSua, idSuaChua, limit = 10, offset = 0, sortBy = 'maHoaDonSc', sort = 'desc' } = req;
+    const where: any = { isDelete: false };
+
+    if (trangThai !== undefined) {
+      where.trangThai = trangThai;
+    }
+
+    if (loaiSua !== undefined) {
+      where.loaiSua = loaiSua;
+    }
+
+    if (idSuaChua !== undefined) {
+      where.idSuaChua = idSuaChua;
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.hoaDonSuaChua.findMany({
+        where,
+        orderBy: { [sortBy]: sort },
+        take: Number(limit),
+        skip: Number(offset),
+      }),
+      this.prisma.hoaDonSuaChua.count({ where }),
+    ]);
+
+    return { total, data };
+  }
+
   getAllLoadingBalance(id?: number) {
     return this.prisma.hoaDonSuaChua.findMany({
       where: { isDelete: false },

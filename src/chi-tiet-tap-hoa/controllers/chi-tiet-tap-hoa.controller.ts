@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestj
 import { ChiTietTapHoaService } from '../services/chi-tiet-tap-hoa.service';
 import { CreateChiTietTapHoaDto } from '../dto/create-chi-tiet-tap-hoa.dto';
 import { UpdateChiTietTapHoaDto } from '../dto/update-chi-tiet-tap-hoa.dto';
+import { SearchChiTietTapHoaDto } from '../dto/search-chi-tiet-tap-hoa.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Chi Tiết Tạp Hóa')
@@ -22,6 +23,12 @@ export class ChiTietTapHoaController {
   @ApiOperation({ summary: 'Danh sách Chi Tiết Tạp Hóa' })
   findAll() {
     return this.chiTietTapHoaService.findAll();
+  }
+
+  @Get('search')
+  @ApiOperation({ summary: 'Tìm kiếm theo mã hóa đơn tạp hóa liên quan (có phân trang)' })
+  search(@Query() dto: SearchChiTietTapHoaDto) {
+    return this.chiTietTapHoaService.search(dto);
   }
 
   @Get('load-balance')

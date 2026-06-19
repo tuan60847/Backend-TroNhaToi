@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePhuongTienDto } from '../dto/create-phuong-tien.dto';
 import { UpdatePhuongTienDto } from '../dto/update-phuong-tien.dto';
+import { SearchPhuongTienDto } from '../dto/search-phuong-tien.dto';
 
 @Injectable()
 export class PhuongTienService {
@@ -36,6 +37,27 @@ export class PhuongTienService {
     const item = await this.findOne(id);
     return this.prisma.phuongTien.update({ where: { ID: item.ID }, data: { isDelete: true } });
   }
+  async search(req: SearchPhuongTienDto) {
+    const { ma, limit = 10, offset = 0, sortBy = 'ID', sort = 'desc' } = req;
+    const where: any = { isDelete: false };
+
+    if (ma) {
+      where.bienSo = { contains: ma };
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.phuongTien.findMany({
+        where,
+        orderBy: { [sortBy]: sort },
+        take: Number(limit),
+        skip: Number(offset),
+      }),
+      this.prisma.phuongTien.count({ where }),
+    ]);
+
+    return { total, data };
+  }
+
   getAllLoadingBalance(id?: number) {
     return this.prisma.phuongTien.findMany({
       where: { isDelete: false },

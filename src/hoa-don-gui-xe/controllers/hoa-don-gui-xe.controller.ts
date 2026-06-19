@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestj
 import { HoaDonGuiXeService } from '../services/hoa-don-gui-xe.service';
 import { CreateHoaDonGuiXeDto } from '../dto/create-hoa-don-gui-xe.dto';
 import { UpdateHoaDonGuiXeDto } from '../dto/update-hoa-don-gui-xe.dto';
+import { SearchHoaDonGuiXeDto } from '../dto/search-hoa-don-gui-xe.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Hóa Đơn Gửi Xe')
@@ -22,6 +23,12 @@ export class HoaDonGuiXeController {
   @ApiOperation({ summary: 'Danh sách Hóa Đơn Gửi Xe' })
   findAll() {
     return this.hoaDonGuiXeService.findAll();
+  }
+
+  @Get('search')
+  @ApiOperation({ summary: 'Tìm kiếm Hóa Đơn Gửi Xe (theo tháng/năm, lọc trạng thái/phương tiện, có phân trang)' })
+  search(@Query() dto: SearchHoaDonGuiXeDto) {
+    return this.hoaDonGuiXeService.search(dto);
   }
 
   @Get('load-balance')

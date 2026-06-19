@@ -10,6 +10,7 @@ const mockPrisma = {
     findFirst: jest.fn(),
     create:    jest.fn(),
     update:    jest.fn(),
+    count:     jest.fn(),
   },
 };
 
@@ -149,6 +150,37 @@ describe('LapRapService', () => {
         await service.remove(INVALID_ID as any);
       } catch {}
       expect(mockPrisma.lapRap.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── search ─────────────────────────────────────────────────────────
+  describe('search()', () => {
+    it('lọc theo phongId và thietBiId khi truyền vào', async () => {
+      mockPrisma.lapRap.findMany.mockResolvedValue([MOCK_ITEM]);
+      mockPrisma.lapRap.count.mockResolvedValue(1);
+
+      const result = await service.search({ phongId: 1, thietBiId: 1 } as any);
+
+      expect(result).toEqual({ total: 1, data: [MOCK_ITEM] });
+      expect(mockPrisma.lapRap.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isDelete: false, phongId: 1, thietBiId: 1 },
+          orderBy: { id: 'desc' },
+          take: 10,
+          skip: 0,
+        }),
+      );
+    });
+
+    it('không truyền gì thì chỉ lọc isDelete: false', async () => {
+      mockPrisma.lapRap.findMany.mockResolvedValue([]);
+      mockPrisma.lapRap.count.mockResolvedValue(0);
+
+      await service.search({} as any);
+
+      expect(mockPrisma.lapRap.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { isDelete: false } }),
+      );
     });
   });
 

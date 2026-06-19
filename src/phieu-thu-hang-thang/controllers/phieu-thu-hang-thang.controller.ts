@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestj
 import { PhieuThuHangThangService } from '../services/phieu-thu-hang-thang.service';
 import { CreatePhieuThuHangThangDto } from '../dto/create-phieu-thu-hang-thang.dto';
 import { UpdatePhieuThuHangThangDto } from '../dto/update-phieu-thu-hang-thang.dto';
+import { SearchPhieuThuHangThangDto } from '../dto/search-phieu-thu-hang-thang.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Phiếu Thu Hàng Tháng')
@@ -22,6 +23,12 @@ export class PhieuThuHangThangController {
   @ApiOperation({ summary: 'Danh sách Phiếu Thu Hàng Tháng' })
   findAll() {
     return this.phieuThuHangThangService.findAll();
+  }
+
+  @Get('search')
+  @ApiOperation({ summary: 'Tìm kiếm theo mã hóa đơn phòng liên quan (có phân trang)' })
+  search(@Query() dto: SearchPhieuThuHangThangDto) {
+    return this.phieuThuHangThangService.search(dto);
   }
 
   @Get('load-balance')

@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestj
 import { ThietBiService } from '../services/thiet-bi.service';
 import { CreateThietBiDto } from '../dto/create-thiet-bi.dto';
 import { UpdateThietBiDto } from '../dto/update-thiet-bi.dto';
+import { SearchThietBiDto } from '../dto/search-thiet-bi.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Thiết Bị')
@@ -22,6 +23,19 @@ export class ThietBiController {
   @ApiOperation({ summary: 'Danh sách Thiết Bị' })
   findAll() {
     return this.thietBiService.findAll();
+  }
+
+  @Get('search')
+  @ApiOperation({ summary: 'Tìm kiếm Thiết Bị (theo tên/loại, có phân trang)' })
+  search(@Query() dto: SearchThietBiDto) {
+    return this.thietBiService.search(dto);
+  }
+
+  @Get('search-by-name')
+  @ApiOperation({ summary: 'Tìm kiếm Thiết Bị theo tên' })
+  @ApiQuery({ name: 'ten', required: true, description: 'Tên cần tìm' })
+  searchByName(@Query('ten') ten: string) {
+    return this.thietBiService.searchByName(ten);
   }
 
   @Get('load-balance')

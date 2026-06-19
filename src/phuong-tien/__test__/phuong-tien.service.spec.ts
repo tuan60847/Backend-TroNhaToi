@@ -10,6 +10,7 @@ const mockPrisma = {
     findFirst: jest.fn(),
     create:    jest.fn(),
     update:    jest.fn(),
+    count:     jest.fn(),
   },
 };
 
@@ -149,6 +150,48 @@ describe('PhuongTienService', () => {
         await service.remove(INVALID_ID);
       } catch {}
       expect(mockPrisma.phuongTien.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── search ─────────────────────────────────────────────────────────
+  describe('search()', () => {
+    it('tìm theo mã (contains) và trả về { total, data }', async () => {
+      mockPrisma.phuongTien.findMany.mockResolvedValue([MOCK_ITEM]);
+      mockPrisma.phuongTien.count.mockResolvedValue(1);
+
+      const result = await service.search({ ma: '59A1-12345' } as any);
+
+      expect(result).toEqual({ total: 1, data: [MOCK_ITEM] });
+      expect(mockPrisma.phuongTien.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isDelete: false, bienSo: { contains: '59A1-12345' } },
+          orderBy: { ID: 'desc' },
+          take: 10,
+          skip: 0,
+        }),
+      );
+    });
+
+    it('áp dụng limit/offset/sortBy/sort tùy chỉnh', async () => {
+      mockPrisma.phuongTien.findMany.mockResolvedValue([]);
+      mockPrisma.phuongTien.count.mockResolvedValue(0);
+
+      await service.search({ limit: 5, offset: 10, sortBy: 'ID', sort: 'asc' } as any);
+
+      expect(mockPrisma.phuongTien.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: { ID: 'asc' }, take: 5, skip: 10 }),
+      );
+    });
+
+    it('không truyền ma thì chỉ lọc isDelete: false', async () => {
+      mockPrisma.phuongTien.findMany.mockResolvedValue([MOCK_ITEM]);
+      mockPrisma.phuongTien.count.mockResolvedValue(1);
+
+      await service.search({} as any);
+
+      expect(mockPrisma.phuongTien.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { isDelete: false } }),
+      );
     });
   });
 

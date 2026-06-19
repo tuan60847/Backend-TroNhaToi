@@ -10,6 +10,7 @@ const mockPrisma = {
     findFirst: jest.fn(),
     create:    jest.fn(),
     update:    jest.fn(),
+    count:     jest.fn(),
   },
 };
 
@@ -149,6 +150,37 @@ describe('HoaDonSuaChuaService', () => {
         await service.remove(INVALID_ID as any);
       } catch {}
       expect(mockPrisma.hoaDonSuaChua.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── search ─────────────────────────────────────────────────────────
+  describe('search()', () => {
+    it('lọc theo trangThai/loaiSua/idSuaChua khi truyền vào', async () => {
+      mockPrisma.hoaDonSuaChua.findMany.mockResolvedValue([MOCK_ITEM]);
+      mockPrisma.hoaDonSuaChua.count.mockResolvedValue(1);
+
+      const result = await service.search({ trangThai: 1, loaiSua: 0, idSuaChua: 1 } as any);
+
+      expect(result).toEqual({ total: 1, data: [MOCK_ITEM] });
+      expect(mockPrisma.hoaDonSuaChua.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isDelete: false, trangThai: 1, loaiSua: 0, idSuaChua: 1 },
+          orderBy: { maHoaDonSc: 'desc' },
+          take: 10,
+          skip: 0,
+        }),
+      );
+    });
+
+    it('không truyền gì thì chỉ lọc isDelete: false', async () => {
+      mockPrisma.hoaDonSuaChua.findMany.mockResolvedValue([]);
+      mockPrisma.hoaDonSuaChua.count.mockResolvedValue(0);
+
+      await service.search({} as any);
+
+      expect(mockPrisma.hoaDonSuaChua.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { isDelete: false } }),
+      );
     });
   });
 

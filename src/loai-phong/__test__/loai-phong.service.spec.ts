@@ -10,6 +10,7 @@ const mockPrisma = {
     findFirst: jest.fn(),
     create:    jest.fn(),
     update:    jest.fn(),
+    count:     jest.fn(),
   },
 };
 
@@ -149,6 +150,54 @@ describe('LoaiPhongService', () => {
         await service.remove(INVALID_ID as any);
       } catch {}
       expect(mockPrisma.loaiPhong.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── search ─────────────────────────────────────────────────────────
+  describe('search()', () => {
+    it('tìm theo từ khóa q (tenLoaiPhong)', async () => {
+      mockPrisma.loaiPhong.findMany.mockResolvedValue([MOCK_ITEM]);
+      mockPrisma.loaiPhong.count.mockResolvedValue(1);
+
+      const result = await service.search({ q: 'Phòng đơn' } as any);
+
+      expect(result).toEqual({ total: 1, data: [MOCK_ITEM] });
+      expect(mockPrisma.loaiPhong.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isDelete: false, tenLoaiPhong: { contains: 'Phòng đơn' } },
+          orderBy: { maLoaiPhong: 'desc' },
+          take: 10,
+          skip: 0,
+        }),
+      );
+    });
+
+    it('không truyền q thì chỉ lọc isDelete: false', async () => {
+      mockPrisma.loaiPhong.findMany.mockResolvedValue([]);
+      mockPrisma.loaiPhong.count.mockResolvedValue(0);
+
+      await service.search({} as any);
+
+      expect(mockPrisma.loaiPhong.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { isDelete: false } }),
+      );
+    });
+  });
+
+  // ── searchByName ───────────────────────────────────────────────────
+  describe('searchByName()', () => {
+    it('tìm theo tên (tenLoaiPhong contains) và trả về mảng', async () => {
+      mockPrisma.loaiPhong.findMany.mockResolvedValue([MOCK_ITEM]);
+      const result = await service.searchByName('Phòng đơn');
+      expect(result).toEqual([MOCK_ITEM]);
+      expect(mockPrisma.loaiPhong.findMany).toHaveBeenCalledWith({
+        where: { tenLoaiPhong: { contains: 'Phòng đơn' }, isDelete: false },
+      });
+    });
+
+    it('trả về mảng rỗng khi không tìm thấy', async () => {
+      mockPrisma.loaiPhong.findMany.mockResolvedValue([]);
+      expect(await service.searchByName('Không tồn tại')).toEqual([]);
     });
   });
 

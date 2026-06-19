@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePhongDto } from '../dto/create-phong.dto';
 import { UpdatePhongDto } from '../dto/update-phong.dto';
+import { SearchPhongDto } from '../dto/search-phong.dto';
 
 @Injectable()
 export class PhongService {
@@ -36,6 +37,44 @@ export class PhongService {
     await this.findOne(id);
     return this.prisma.phong.update({ where: { phongId: id }, data: { isDelete: true } });
   }
+  async search(req: SearchPhongDto) {
+    const { q, trangThai, maLoaiPhong, limit = 10, offset = 0, sortBy = 'phongId', sort = 'desc' } = req;
+    const where: any = { isDelete: false };
+
+    if (q) {
+      where.OR = [
+        { tenPhong: { contains: q } },
+        { moTa: { contains: q } },
+      ];
+    }
+
+    if (trangThai !== undefined) {
+      where.trangThai = trangThai;
+    }
+
+    if (maLoaiPhong !== undefined) {
+      where.maLoaiPhong = maLoaiPhong;
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.phong.findMany({
+        where,
+        orderBy: { [sortBy]: sort },
+        take: Number(limit),
+        skip: Number(offset),
+      }),
+      this.prisma.phong.count({ where }),
+    ]);
+
+    return { total, data };
+  }
+
+  searchByName(ten: string) {
+    return this.prisma.phong.findMany({
+      where: { tenPhong: { contains: ten }, isDelete: false },
+    });
+  }
+
   getAllLoadingBalance(id?: number) {
     return this.prisma.phong.findMany({
       where: { isDelete: false },

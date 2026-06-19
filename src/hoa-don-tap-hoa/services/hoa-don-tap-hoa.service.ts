@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateHoaDonTapHoaDto } from '../dto/create-hoa-don-tap-hoa.dto';
 import { UpdateHoaDonTapHoaDto } from '../dto/update-hoa-don-tap-hoa.dto';
+import { SearchHoaDonTapHoaDto } from '../dto/search-hoa-don-tap-hoa.dto';
 import { generateId } from '../../common/utils/generate-id.util';
 
 @Injectable()
@@ -39,6 +40,27 @@ export class HoaDonTapHoaService {
     await this.findOne(id);
     return this.prisma.hoaDonTapHoa.update({ where: { maHoaDon: id }, data: { isDelete: true } });
   }
+  async search(req: SearchHoaDonTapHoaDto) {
+    const { ma, limit = 10, offset = 0, sortBy = 'maHoaDon', sort = 'desc' } = req;
+    const where: any = { isDelete: false };
+
+    if (ma) {
+      where.maHoaDon = { contains: ma };
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.hoaDonTapHoa.findMany({
+        where,
+        orderBy: { [sortBy]: sort },
+        take: Number(limit),
+        skip: Number(offset),
+      }),
+      this.prisma.hoaDonTapHoa.count({ where }),
+    ]);
+
+    return { total, data };
+  }
+
   getAllLoadingBalance(id?: string) {
     return this.prisma.hoaDonTapHoa.findMany({
       where: { isDelete: false },

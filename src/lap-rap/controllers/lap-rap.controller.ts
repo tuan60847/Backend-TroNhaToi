@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestj
 import { LapRapService } from '../services/lap-rap.service';
 import { CreateLapRapDto } from '../dto/create-lap-rap.dto';
 import { UpdateLapRapDto } from '../dto/update-lap-rap.dto';
+import { SearchLapRapDto } from '../dto/search-lap-rap.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Lắp Ráp Thiết Bị')
@@ -22,6 +23,12 @@ export class LapRapController {
   @ApiOperation({ summary: 'Danh sách Lắp Ráp Thiết Bị' })
   findAll() {
     return this.lapRapService.findAll();
+  }
+
+  @Get('search')
+  @ApiOperation({ summary: 'Tìm kiếm Lắp Ráp Thiết Bị (lọc theo phòng/thiết bị, có phân trang)' })
+  search(@Query() dto: SearchLapRapDto) {
+    return this.lapRapService.search(dto);
   }
 
   @Get('load-balance')

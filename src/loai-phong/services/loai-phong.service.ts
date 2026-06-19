@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateLoaiPhongDto } from '../dto/create-loai-phong.dto';
 import { UpdateLoaiPhongDto } from '../dto/update-loai-phong.dto';
+import { SearchLoaiPhongDto } from '../dto/search-loai-phong.dto';
 
 @Injectable()
 export class LoaiPhongService {
@@ -36,6 +37,33 @@ export class LoaiPhongService {
     await this.findOne(id);
     return this.prisma.loaiPhong.update({ where: { maLoaiPhong: id }, data: { isDelete: true } });
   }
+  async search(req: SearchLoaiPhongDto) {
+    const { q, limit = 10, offset = 0, sortBy = 'maLoaiPhong', sort = 'desc' } = req;
+    const where: any = { isDelete: false };
+
+    if (q) {
+      where.tenLoaiPhong = { contains: q };
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.loaiPhong.findMany({
+        where,
+        orderBy: { [sortBy]: sort },
+        take: Number(limit),
+        skip: Number(offset),
+      }),
+      this.prisma.loaiPhong.count({ where }),
+    ]);
+
+    return { total, data };
+  }
+
+  searchByName(ten: string) {
+    return this.prisma.loaiPhong.findMany({
+      where: { tenLoaiPhong: { contains: ten }, isDelete: false },
+    });
+  }
+
   getAllLoadingBalance(id?: number) {
     return this.prisma.loaiPhong.findMany({
       where: { isDelete: false },

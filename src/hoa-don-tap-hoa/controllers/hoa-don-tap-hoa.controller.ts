@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestj
 import { HoaDonTapHoaService } from '../services/hoa-don-tap-hoa.service';
 import { CreateHoaDonTapHoaDto } from '../dto/create-hoa-don-tap-hoa.dto';
 import { UpdateHoaDonTapHoaDto } from '../dto/update-hoa-don-tap-hoa.dto';
+import { SearchHoaDonTapHoaDto } from '../dto/search-hoa-don-tap-hoa.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Hóa Đơn Tạp Hóa')
@@ -22,6 +23,12 @@ export class HoaDonTapHoaController {
   @ApiOperation({ summary: 'Danh sách Hóa Đơn Tạp Hóa' })
   findAll() {
     return this.hoaDonTapHoaService.findAll();
+  }
+
+  @Get('search')
+  @ApiOperation({ summary: 'Tìm kiếm theo mã hóa đơn tạp hóa (có phân trang)' })
+  search(@Query() dto: SearchHoaDonTapHoaDto) {
+    return this.hoaDonTapHoaService.search(dto);
   }
 
   @Get('load-balance')

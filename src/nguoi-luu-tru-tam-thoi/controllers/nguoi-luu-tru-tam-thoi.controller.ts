@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestj
 import { NguoiLuuTruTamThoiService } from '../services/nguoi-luu-tru-tam-thoi.service';
 import { CreateNguoiLuuTruTamThoiDto } from '../dto/create-nguoi-luu-tru-tam-thoi.dto';
 import { UpdateNguoiLuuTruTamThoiDto } from '../dto/update-nguoi-luu-tru-tam-thoi.dto';
+import { SearchNguoiLuuTruTamThoiDto } from '../dto/search-nguoi-luu-tru-tam-thoi.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Người Lưu Trú Tạm Thời')
@@ -22,6 +23,19 @@ export class NguoiLuuTruTamThoiController {
   @ApiOperation({ summary: 'Danh sách Người Lưu Trú Tạm Thời' })
   findAll() {
     return this.nguoiLuuTruTamThoiService.findAll();
+  }
+
+  @Get('search')
+  @ApiOperation({ summary: 'Tìm kiếm Người Lưu Trú Tạm Thời (theo họ tên/CCCD/SĐT/quê quán, có phân trang)' })
+  search(@Query() dto: SearchNguoiLuuTruTamThoiDto) {
+    return this.nguoiLuuTruTamThoiService.search(dto);
+  }
+
+  @Get('search-by-name')
+  @ApiOperation({ summary: 'Tìm kiếm Người Lưu Trú Tạm Thời theo tên' })
+  @ApiQuery({ name: 'ten', required: true, description: 'Tên cần tìm' })
+  searchByName(@Query('ten') ten: string) {
+    return this.nguoiLuuTruTamThoiService.searchByName(ten);
   }
 
   @Get('load-balance')

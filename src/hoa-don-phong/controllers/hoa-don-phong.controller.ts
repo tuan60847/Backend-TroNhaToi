@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestj
 import { HoaDonPhongService } from '../services/hoa-don-phong.service';
 import { CreateHoaDonPhongDto } from '../dto/create-hoa-don-phong.dto';
 import { UpdateHoaDonPhongDto } from '../dto/update-hoa-don-phong.dto';
+import { SearchHoaDonPhongDto } from '../dto/search-hoa-don-phong.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Hóa Đơn Phòng')
@@ -22,6 +23,12 @@ export class HoaDonPhongController {
   @ApiOperation({ summary: 'Danh sách Hóa Đơn Phòng' })
   findAll() {
     return this.hoaDonPhongService.findAll();
+  }
+
+  @Get('search')
+  @ApiOperation({ summary: 'Tìm kiếm theo mã hóa đơn phòng (có phân trang)' })
+  search(@Query() dto: SearchHoaDonPhongDto) {
+    return this.hoaDonPhongService.search(dto);
   }
 
   @Get('load-balance')

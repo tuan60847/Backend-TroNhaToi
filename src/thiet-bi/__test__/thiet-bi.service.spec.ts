@@ -10,6 +10,7 @@ const mockPrisma = {
     findFirst: jest.fn(),
     create:    jest.fn(),
     update:    jest.fn(),
+    count:     jest.fn(),
   },
 };
 
@@ -149,6 +150,71 @@ describe('ThietBiService', () => {
         await service.remove(INVALID_ID as any);
       } catch {}
       expect(mockPrisma.thietBi.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── search ─────────────────────────────────────────────────────────
+  describe('search()', () => {
+    it('tìm theo từ khóa q (OR trên tenThietBi/loai)', async () => {
+      mockPrisma.thietBi.findMany.mockResolvedValue([MOCK_ITEM]);
+      mockPrisma.thietBi.count.mockResolvedValue(1);
+
+      const result = await service.search({ q: 'Panasonic' } as any);
+
+      expect(result).toEqual({ total: 1, data: [MOCK_ITEM] });
+      expect(mockPrisma.thietBi.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            isDelete: false,
+            OR: [
+              { tenThietBi: { contains: 'Panasonic' } },
+              { loai: { contains: 'Panasonic' } },
+            ],
+          },
+          orderBy: { thietBiId: 'desc' },
+          take: 10,
+          skip: 0,
+        }),
+      );
+    });
+
+    it('lọc theo trangThai khi truyền vào', async () => {
+      mockPrisma.thietBi.findMany.mockResolvedValue([]);
+      mockPrisma.thietBi.count.mockResolvedValue(0);
+
+      await service.search({ trangThai: 1 } as any);
+
+      expect(mockPrisma.thietBi.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { isDelete: false, trangThai: 1 } }),
+      );
+    });
+
+    it('không truyền gì thì chỉ lọc isDelete: false', async () => {
+      mockPrisma.thietBi.findMany.mockResolvedValue([]);
+      mockPrisma.thietBi.count.mockResolvedValue(0);
+
+      await service.search({} as any);
+
+      expect(mockPrisma.thietBi.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { isDelete: false } }),
+      );
+    });
+  });
+
+  // ── searchByName ───────────────────────────────────────────────────
+  describe('searchByName()', () => {
+    it('tìm theo tên (tenThietBi contains) và trả về mảng', async () => {
+      mockPrisma.thietBi.findMany.mockResolvedValue([MOCK_ITEM]);
+      const result = await service.searchByName('Panasonic');
+      expect(result).toEqual([MOCK_ITEM]);
+      expect(mockPrisma.thietBi.findMany).toHaveBeenCalledWith({
+        where: { tenThietBi: { contains: 'Panasonic' }, isDelete: false },
+      });
+    });
+
+    it('trả về mảng rỗng khi không tìm thấy', async () => {
+      mockPrisma.thietBi.findMany.mockResolvedValue([]);
+      expect(await service.searchByName('Không tồn tại')).toEqual([]);
     });
   });
 

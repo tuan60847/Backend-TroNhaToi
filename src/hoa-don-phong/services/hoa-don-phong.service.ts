@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateHoaDonPhongDto } from '../dto/create-hoa-don-phong.dto';
 import { UpdateHoaDonPhongDto } from '../dto/update-hoa-don-phong.dto';
+import { SearchHoaDonPhongDto } from '../dto/search-hoa-don-phong.dto';
 import { generateId } from '../../common/utils/generate-id.util';
 
 @Injectable()
@@ -39,6 +40,27 @@ export class HoaDonPhongService {
     await this.findOne(id);
     return this.prisma.hoaDonPhong.update({ where: { maHoaDon: id }, data: { isDelete: true } });
   }
+  async search(req: SearchHoaDonPhongDto) {
+    const { ma, limit = 10, offset = 0, sortBy = 'maHoaDon', sort = 'desc' } = req;
+    const where: any = { isDelete: false };
+
+    if (ma) {
+      where.maHoaDon = { contains: ma };
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.hoaDonPhong.findMany({
+        where,
+        orderBy: { [sortBy]: sort },
+        take: Number(limit),
+        skip: Number(offset),
+      }),
+      this.prisma.hoaDonPhong.count({ where }),
+    ]);
+
+    return { total, data };
+  }
+
   getAllLoadingBalance(id?: string) {
     return this.prisma.hoaDonPhong.findMany({
       where: { isDelete: false },

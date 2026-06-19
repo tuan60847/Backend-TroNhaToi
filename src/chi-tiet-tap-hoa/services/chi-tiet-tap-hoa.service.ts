@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateChiTietTapHoaDto } from '../dto/create-chi-tiet-tap-hoa.dto';
 import { UpdateChiTietTapHoaDto } from '../dto/update-chi-tiet-tap-hoa.dto';
+import { SearchChiTietTapHoaDto } from '../dto/search-chi-tiet-tap-hoa.dto';
 
 @Injectable()
 export class ChiTietTapHoaService {
@@ -36,6 +37,27 @@ export class ChiTietTapHoaService {
     await this.findOne(id);
     return this.prisma.chiTietTapHoa.update({ where: { maChiTietHoaDon: id }, data: { isDelete: true } });
   }
+  async search(req: SearchChiTietTapHoaDto) {
+    const { ma, limit = 10, offset = 0, sortBy = 'maChiTietHoaDon', sort = 'desc' } = req;
+    const where: any = { isDelete: false };
+
+    if (ma) {
+      where.maHoaDon = { contains: ma };
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.chiTietTapHoa.findMany({
+        where,
+        orderBy: { [sortBy]: sort },
+        take: Number(limit),
+        skip: Number(offset),
+      }),
+      this.prisma.chiTietTapHoa.count({ where }),
+    ]);
+
+    return { total, data };
+  }
+
   getAllLoadingBalance(id?: number) {
     return this.prisma.chiTietTapHoa.findMany({
       where: { isDelete: false },

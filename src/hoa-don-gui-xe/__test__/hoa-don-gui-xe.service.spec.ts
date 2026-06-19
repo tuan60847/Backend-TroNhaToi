@@ -10,6 +10,7 @@ const mockPrisma = {
     findFirst: jest.fn(),
     create:    jest.fn(),
     update:    jest.fn(),
+    count:     jest.fn(),
   },
 };
 
@@ -149,6 +150,37 @@ describe('HoaDonGuiXeService', () => {
         await service.remove(INVALID_ID as any);
       } catch {}
       expect(mockPrisma.hoaDonGuiXe.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── search ─────────────────────────────────────────────────────────
+  describe('search()', () => {
+    it('tìm theo từ khóa q (thangNam) và lọc trangThai/idPT', async () => {
+      mockPrisma.hoaDonGuiXe.findMany.mockResolvedValue([MOCK_ITEM]);
+      mockPrisma.hoaDonGuiXe.count.mockResolvedValue(1);
+
+      const result = await service.search({ q: '01/2024', trangThai: 0, idPT: 1 } as any);
+
+      expect(result).toEqual({ total: 1, data: [MOCK_ITEM] });
+      expect(mockPrisma.hoaDonGuiXe.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isDelete: false, thangNam: { contains: '01/2024' }, TrangThai: 0, idPT: 1 },
+          orderBy: { maHoaDon: 'desc' },
+          take: 10,
+          skip: 0,
+        }),
+      );
+    });
+
+    it('không truyền gì thì chỉ lọc isDelete: false', async () => {
+      mockPrisma.hoaDonGuiXe.findMany.mockResolvedValue([]);
+      mockPrisma.hoaDonGuiXe.count.mockResolvedValue(0);
+
+      await service.search({} as any);
+
+      expect(mockPrisma.hoaDonGuiXe.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { isDelete: false } }),
+      );
     });
   });
 

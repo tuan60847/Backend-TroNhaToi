@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestj
 import { DienNuocService } from '../services/dien-nuoc.service';
 import { CreateDienNuocDto } from '../dto/create-dien-nuoc.dto';
 import { UpdateDienNuocDto } from '../dto/update-dien-nuoc.dto';
+import { SearchDienNuocDto } from '../dto/search-dien-nuoc.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Điện Nước')
@@ -22,6 +23,12 @@ export class DienNuocController {
   @ApiOperation({ summary: 'Danh sách Điện Nước' })
   findAll() {
     return this.dienNuocService.findAll();
+  }
+
+  @Get('search')
+  @ApiOperation({ summary: 'Tìm kiếm theo mã điện nước (có phân trang)' })
+  search(@Query() dto: SearchDienNuocDto) {
+    return this.dienNuocService.search(dto);
   }
 
   @Get('load-balance')
