@@ -4,7 +4,6 @@ import { CreateHoaDonTapHoaDto } from '../dto/create-hoa-don-tap-hoa.dto';
 import { UpdateHoaDonTapHoaDto } from '../dto/update-hoa-don-tap-hoa.dto';
 import { SearchHoaDonTapHoaDto } from '../dto/search-hoa-don-tap-hoa.dto';
 import { StatisticsHoaDonTapHoaDto } from '../dto/statistics-hoa-don-tap-hoa.dto';
-import { generateId } from '../../common/utils/generate-id.util';
 
 @Injectable()
 export class HoaDonTapHoaService {
@@ -26,9 +25,28 @@ export class HoaDonTapHoaService {
     return item;
   }
 
-  create(dto: CreateHoaDonTapHoaDto) {
+  private async generateMaHoaDon(): Promise<string> {
+    const now = new Date();
+    const dateStr =
+      now.getFullYear().toString() +
+      String(now.getMonth() + 1).padStart(2, '0') +
+      String(now.getDate()).padStart(2, '0');
+    const prefix = `TH${dateStr}`;
+
+    const last = await this.prisma.hoaDonTapHoa.findFirst({
+      where: { maHoaDon: { startsWith: prefix } },
+      orderBy: { maHoaDon: 'desc' },
+      select: { maHoaDon: true },
+    });
+
+    const nextStt = last ? parseInt(last.maHoaDon.slice(-3), 10) + 1 : 1;
+    return `${prefix}${String(nextStt).padStart(3, '0')}`;
+  }
+
+  async create(dto: CreateHoaDonTapHoaDto) {
+    const maHoaDon = await this.generateMaHoaDon();
     return this.prisma.hoaDonTapHoa.create({
-      data: { maHoaDon: generateId('TH', 11), ...dto } as any,
+      data: { maHoaDon, ...dto } as any,
     });
   }
 
