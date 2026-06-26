@@ -223,9 +223,25 @@ LoaiPhong ──< Phong ──────────────────�
 
 ### Đặc biệt
 - **PhuongTien**: PK là `bienSo` (VARCHAR, string) thay vì INT
+- **HoaDonTapHoa**: PK là `maHoaDon` (VARCHAR 13, string) — tự sinh `TH+YYYYMMDD+STT`
 - **LapRap**: Bảng junction Phong ↔ ThietBi, có thêm `ngayLap`, `soLuong`
 - **User**: Bảng riêng cho auth, không liên kết với schema nghiệp vụ
 - **1 role duy nhất**: `admin` — chủ phòng trọ quản lý toàn bộ hệ thống
+- **Soft delete**: Tất cả bảng có `isDelete BOOLEAN DEFAULT false`; `DELETE` endpoint chỉ set `isDelete = true`
+
+### Key Transform (Prisma → Response)
+
+Backend transform một số key để khớp với Flutter app:
+
+| Service | Prisma key | Response key |
+|---------|-----------|-------------|
+| DienNuoc | `phongId` | `PhongID` |
+| HoaDonPhong | `hopDongId` | `HopDongID` |
+| HoaDonGuiXe | `idPT` | `idPhuongTien` |
+| LapRap | `phongId`, `thietBiId` | `PhongID`, `thietBiID` |
+| ThietBi | `thietBiId` | `thietBiID` |
+| SuaChua | wrapped | `{ suaChua: { PhongID }, hoaDonSuaChua: { maHoaDonSC, TrangThai, ngayLapHoaDonSC } }` |
+| HoaDonTapHoa | flattened | `{ tenNguoiMua, phieuThu, dsHangHoa[], soLuong{} }` |
 
 ---
 
@@ -314,29 +330,41 @@ yarn test:e2e
 
 Xem chi tiết: [`docs/API.md`](./docs/API.md)
 
-**Tóm tắt (18 entities × 6 endpoints + 3 auth = 111 endpoints):**
+**Tóm tắt modules:**
 
-| Module | Base URL | PK Type | Search |
-|--------|----------|---------|--------|
-| Auth | `/auth` | — | — |
-| LoaiPhong | `/loai-phong` | Int | ✅ |
-| Phong | `/phong` | Int | ✅ |
-| NguoiThue | `/nguoi-thue` | Int | ✅ |
-| HopDong | `/hop-dong` | Int | ✅ |
-| DienNuoc | `/dien-nuoc` | Int | ✅ |
-| HoaDonPhong | `/hoa-don-phong` | Int | ✅ |
-| PhieuThuHangThang | `/phieu-thu-hang-thang` | Int | ✅ |
-| **PhuongTien** | `/phuong-tien` | **String** | ✅ |
-| HoaDonGuiXe | `/hoa-don-gui-xe` | Int | ✅ |
-| HangHoa | `/hang-hoa` | Int | ✅ |
-| HoaDonTapHoa | `/hoa-don-tap-hoa` | Int | ✅ |
-| ChiTietTapHoa | `/chi-tiet-tap-hoa` | Int | ✅ |
-| PhieuThuHdTh | `/phieu-thu-hdth` | Int | ✅ |
-| ThietBi | `/thiet-bi` | Int | ✅ |
-| LapRap | `/lap-rap` | Int | ✅ |
-| SuaChua | `/sua-chua` | Int | ✅ |
-| HoaDonSuaChua | `/hoa-don-sua-chua` | Int | ✅ |
-| NguoiLuuTruTamThoi | `/nguoi-luu-tru-tam-thoi` | Int | ✅ |
+| Module | Base URL | PK Type | Search | Statistics | Đặc biệt |
+|--------|----------|---------|--------|------------|---------|
+| Auth | `/auth` | — | — | — | — |
+| LoaiPhong | `/loai-phong` | Int | ✅ | — | search-by-name |
+| Phong | `/phong` | Int | ✅ | — | `/:id/listNguoiThue`, `/:id/trang-thai` |
+| NguoiThue | `/nguoi-thue` | Int | ✅ | — | `/:idnt/listRoomNguoiThue`, `/findall` |
+| HopDong | `/hop-dong` | Int | ✅ | — | — |
+| DienNuoc | `/dien-nuoc` | Int | ✅ | — | transform: `phongId`→`PhongID` |
+| HoaDonPhong | `/hoa-don-phong` | Int | ✅ | ✅ | transform: `hopDongId`→`HopDongID` |
+| PhieuThuHangThang | `/phieu-thu-hang-thang` | Int | ✅ | ✅ | — |
+| **PhuongTien** | `/phuong-tien` | **String** | ✅ | — | PK = bienSo |
+| HoaDonGuiXe | `/hoa-don-gui-xe` | Int | ✅ | ✅ | transform: `idPT`→`idPhuongTien` |
+| HangHoa | `/hang-hoa` | Int | ✅ | — | search-by-name |
+| HoaDonTapHoa | `/hoa-don-tap-hoa` | **String** | ✅ | ✅ | maHoaDon tự sinh `TH+YYYYMMDD+STT`; POST nhận inline chiTietTapHoa + phieuThu |
+| ChiTietTapHoa | `/chi-tiet-tap-hoa` | Int | ✅ | — | Thường tạo inline qua HoaDonTapHoa |
+| PhieuThuHdTh | `/phieu-thu-hdth` | Int | ✅ | — | Thường tạo inline qua HoaDonTapHoa |
+| ThietBi | `/thiet-bi` | Int | ✅ | — | transform: `thietBiId`→`thietBiID` |
+| LapRap | `/lap-rap` | Int | ✅ | — | transform: `phongId`→`PhongID`, `thietBiId`→`thietBiID` |
+| SuaChua | `/sua-chua` | Int | ✅ | — | Response gồm `{ suaChua, hoaDonSuaChua }` |
+| HoaDonSuaChua | `/hoa-don-sua-chua` | Int | ✅ | — | `/:id/trang-thai` endpoint riêng |
+| NguoiLuuTruTamThoi | `/nguoi-luu-tru-tam-thoi` | Int | ✅ | — | search-by-name |
+
+### Endpoint chung mọi module
+
+```
+GET  /{module}                    → Danh sách
+POST /{module}                    → Tạo mới
+GET  /{module}/search?q=...       → Tìm kiếm + phân trang
+GET  /{module}/load-balance?id=   → Cuộn tải dần (15 bản ghi)
+GET  /{module}/:id                → Chi tiết
+PATCH /{module}/:id               → Cập nhật
+DELETE /{module}/:id              → Xóa (soft delete)
+```
 
 ---
 
