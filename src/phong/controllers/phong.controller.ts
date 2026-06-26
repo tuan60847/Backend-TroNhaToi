@@ -46,6 +46,13 @@ export class PhongController {
     return this.phongService.getAllLoadingBalance(id !== undefined ? Number(id) : undefined);
   }
 
+  @Get(':phongId/listNguoiThue')
+  @ApiOperation({ summary: 'Danh sách người thuê đang ở phòng (HopDong + NguoiThue)' })
+  @ApiParam({ name: 'phongId', description: 'ID của Phòng' })
+  findNguoiThueByPhong(@Param('phongId', ParseIntPipe) id: number) {
+    return this.phongService.findNguoiThueByPhong(id);
+  }
+
   @Get(':phongId')
   @ApiOperation({ summary: 'Chi tiết Phòng' })
   @ApiParam({ name: 'phongId', description: 'ID của Phòng' })

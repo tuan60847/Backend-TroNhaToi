@@ -10,20 +10,22 @@ import { generateId } from '../../common/utils/generate-id.util';
 export class HoaDonPhongService {
   constructor(private prisma: PrismaService) {}
 
-  findAll() {
-    return this.prisma.hoaDonPhong.findMany({
-      where: { isDelete: false },
-      //include: { hopDong: { include: { nguoiThue: true, phong: true } }, phieuThuHangThang: true },
-    });
+  private transform(raw: any) {
+    const { hopDongId, isDelete, ...rest } = raw;
+    return { ...rest, HopDongID: hopDongId };
+  }
+
+  async findAll() {
+    const rows = await this.prisma.hoaDonPhong.findMany({ where: { isDelete: false } });
+    return rows.map((r) => this.transform(r));
   }
 
   async findOne(id: string) {
     const item = await this.prisma.hoaDonPhong.findFirst({
       where: { maHoaDon: id, isDelete: false },
-      //include: { hopDong: { include: { nguoiThue: true, phong: true } }, phieuThuHangThang: true },
     });
     if (!item) throw new NotFoundException(`HoaDonPhong với id ${id} không tồn tại`);
-    return item;
+    return this.transform(item);
   }
 
   create(dto: CreateHoaDonPhongDto) {
@@ -49,7 +51,7 @@ export class HoaDonPhongService {
       where.maHoaDon = { contains: ma };
     }
 
-    const [data, total] = await Promise.all([
+    const [rows, total] = await Promise.all([
       this.prisma.hoaDonPhong.findMany({
         where,
         orderBy: { [sortBy]: sort },
@@ -59,7 +61,7 @@ export class HoaDonPhongService {
       this.prisma.hoaDonPhong.count({ where }),
     ]);
 
-    return { total, data };
+    return { total, data: rows.map((r) => this.transform(r)) };
   }
 
   async statistics(req: StatisticsHoaDonPhongDto) {
@@ -94,8 +96,8 @@ export class HoaDonPhongService {
     };
   }
 
-  getAllLoadingBalance(id?: string) {
-    return this.prisma.hoaDonPhong.findMany({
+  async getAllLoadingBalance(id?: string) {
+    const rows = await this.prisma.hoaDonPhong.findMany({
       where: { isDelete: false },
       orderBy: { maHoaDon: 'asc' },
       take: 15,
@@ -103,6 +105,7 @@ export class HoaDonPhongService {
         ? { skip: 1, cursor: { maHoaDon: id } }
         : {}),
     });
+    return rows.map((r) => this.transform(r));
   }
 
 }

@@ -9,20 +9,22 @@ import { generateId } from '../../common/utils/generate-id.util';
 export class DienNuocService {
   constructor(private prisma: PrismaService) {}
 
-  findAll() {
-    return this.prisma.dienNuoc.findMany({
-      where: { isDelete: false },
-      include: { phong: { select: { phongId: true, tenPhong: true } } },
-    });
+  private transform(raw: any) {
+    const { phongId, TrangThai, isDelete, phong, ...rest } = raw;
+    return { ...rest, PhongID: phongId };
+  }
+
+  async findAll() {
+    const rows = await this.prisma.dienNuoc.findMany({ where: { isDelete: false } });
+    return rows.map((r) => this.transform(r));
   }
 
   async findOne(id: string) {
     const item = await this.prisma.dienNuoc.findFirst({
       where: { idDienNuoc: id, isDelete: false },
-      include: { phong: { select: { phongId: true, tenPhong: true } } },
     });
     if (!item) throw new NotFoundException(`DienNuoc với id ${id} không tồn tại`);
-    return item;
+    return this.transform(item);
   }
 
   create(dto: CreateDienNuocDto) {
@@ -48,7 +50,7 @@ export class DienNuocService {
       where.idDienNuoc = { contains: ma };
     }
 
-    const [data, total] = await Promise.all([
+    const [rows, total] = await Promise.all([
       this.prisma.dienNuoc.findMany({
         where,
         orderBy: { [sortBy]: sort },
@@ -58,11 +60,11 @@ export class DienNuocService {
       this.prisma.dienNuoc.count({ where }),
     ]);
 
-    return { total, data };
+    return { total, data: rows.map((r) => this.transform(r)) };
   }
 
-  getAllLoadingBalance(id?: string) {
-    return this.prisma.dienNuoc.findMany({
+  async getAllLoadingBalance(id?: string) {
+    const rows = await this.prisma.dienNuoc.findMany({
       where: { isDelete: false },
       orderBy: { idDienNuoc: 'asc' },
       take: 15,
@@ -70,6 +72,7 @@ export class DienNuocService {
         ? { skip: 1, cursor: { idDienNuoc: id } }
         : {}),
     });
+    return rows.map((r) => this.transform(r));
   }
 
 }

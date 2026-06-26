@@ -8,20 +8,20 @@ import { SearchThietBiDto } from '../dto/search-thiet-bi.dto';
 export class ThietBiService {
   constructor(private prisma: PrismaService) {}
 
-  findAll() {
-    return this.prisma.thietBi.findMany({
-      where: { isDelete: false },
-      //include: { lapRap: { include: { phong: true } } },
-    });
+  private transform(raw: any) {
+    const { thietBiId, isDelete, ...rest } = raw;
+    return { ...rest, thietBiID: thietBiId };
+  }
+
+  async findAll() {
+    const rows = await this.prisma.thietBi.findMany({ where: { isDelete: false } });
+    return rows.map((r) => this.transform(r));
   }
 
   async findOne(id: number) {
-    const item = await this.prisma.thietBi.findFirst({
-      where: { thietBiId: id, isDelete: false },
-      //include: { lapRap: { include: { phong: true } } },
-    });
+    const item = await this.prisma.thietBi.findFirst({ where: { thietBiId: id, isDelete: false } });
     if (!item) throw new NotFoundException(`ThietBi với id ${id} không tồn tại`);
-    return item;
+    return this.transform(item);
   }
 
   create(dto: CreateThietBiDto) {
@@ -52,7 +52,7 @@ export class ThietBiService {
       where.trangThai = trangThai;
     }
 
-    const [data, total] = await Promise.all([
+    const [rows, total] = await Promise.all([
       this.prisma.thietBi.findMany({
         where,
         orderBy: { [sortBy]: sort },
@@ -62,17 +62,18 @@ export class ThietBiService {
       this.prisma.thietBi.count({ where }),
     ]);
 
-    return { total, data };
+    return { total, data: rows.map((r) => this.transform(r)) };
   }
 
-  searchByName(ten: string) {
-    return this.prisma.thietBi.findMany({
+  async searchByName(ten: string) {
+    const rows = await this.prisma.thietBi.findMany({
       where: { tenThietBi: { contains: ten }, isDelete: false },
     });
+    return rows.map((r) => this.transform(r));
   }
 
-  getAllLoadingBalance(id?: number) {
-    return this.prisma.thietBi.findMany({
+  async getAllLoadingBalance(id?: number) {
+    const rows = await this.prisma.thietBi.findMany({
       where: { isDelete: false },
       orderBy: { thietBiId: 'asc' },
       take: 15,
@@ -80,6 +81,7 @@ export class ThietBiService {
         ? { skip: 1, cursor: { thietBiId: id } }
         : {}),
     });
+    return rows.map((r) => this.transform(r));
   }
 
 }

@@ -52,6 +52,13 @@ export class NguoiThueController {
     return this.nguoiThueService.getAllLoadingBalance(id !== undefined ? Number(id) : undefined);
   }
 
+  @Get(':idnt/listRoomNguoiThue')
+  @ApiOperation({ summary: 'Danh sách phòng đang thuê của người thuê (HopDong + Phong + LoaiPhong)' })
+  @ApiParam({ name: 'idnt', description: 'ID của Người Thuê' })
+  findRoomsByNguoiThue(@Param('idnt', ParseIntPipe) idnt: number) {
+    return this.nguoiThueService.findRoomsByNguoiThue(idnt);
+  }
+
   @Get(':idnt')
   @ApiOperation({ summary: 'Chi tiết Người Thuê' })
   @ApiParam({ name: 'idnt', description: 'ID của Người Thuê' })

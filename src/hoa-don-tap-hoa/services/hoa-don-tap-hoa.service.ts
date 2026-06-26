@@ -9,20 +9,52 @@ import { StatisticsHoaDonTapHoaDto } from '../dto/statistics-hoa-don-tap-hoa.dto
 export class HoaDonTapHoaService {
   constructor(private prisma: PrismaService) {}
 
-  findAll() {
-    return this.prisma.hoaDonTapHoa.findMany({
+  private readonly includeAll = {
+    nguoiThue: true,
+    chiTietTapHoa: { where: { isDelete: false }, include: { hangHoa: true } },
+    phieuThuHdTh: true,
+  } as const;
+
+  /** Chuyển raw Prisma record sang shape mà app Flutter mong đợi */
+  private transform(raw: any) {
+    const { nguoiThue, chiTietTapHoa = [], phieuThuHdTh, ...rest } = raw;
+
+    const dsHangHoa = chiTietTapHoa
+      .filter((ct: any) => ct.hangHoa != null)
+      .map((ct: any) => ct.hangHoa);
+
+    // soLuong: { [maHangHoa]: soLuong } — app dùng để hiển thị số lượng từng mặt hàng
+    const soLuong: Record<number, number> = {};
+    for (const ct of chiTietTapHoa) {
+      if (ct.maHangHoa != null && ct.soLuong != null) {
+        soLuong[ct.maHangHoa] = ct.soLuong;
+      }
+    }
+
+    return {
+      ...rest,
+      tenNguoiMua: nguoiThue?.hoTen ?? null,
+      phieuThu: phieuThuHdTh ?? null,
+      dsHangHoa,
+      soLuong,
+    };
+  }
+
+  async findAll() {
+    const rows = await this.prisma.hoaDonTapHoa.findMany({
       where: { isDelete: false },
-      include: { nguoiThue: true, chiTietTapHoa: { include: { hangHoa: true } }, phieuThuHdTh: true },
+      include: this.includeAll,
     });
+    return rows.map((r) => this.transform(r));
   }
 
   async findOne(id: string) {
     const item = await this.prisma.hoaDonTapHoa.findFirst({
       where: { maHoaDon: id, isDelete: false },
-      include: { nguoiThue: true, chiTietTapHoa: { include: { hangHoa: true } }, phieuThuHdTh: true },
+      include: this.includeAll,
     });
     if (!item) throw new NotFoundException(`HoaDonTapHoa với id ${id} không tồn tại`);
-    return item;
+    return this.transform(item);
   }
 
   private async generateMaHoaDon(): Promise<string> {
@@ -45,8 +77,34 @@ export class HoaDonTapHoaService {
 
   async create(dto: CreateHoaDonTapHoaDto) {
     const maHoaDon = await this.generateMaHoaDon();
-    return this.prisma.hoaDonTapHoa.create({
-      data: { maHoaDon, ...dto } as any,
+    const { chiTietTapHoa, phieuThuHdTh, ...hoaDonData } = dto;
+
+    return this.prisma.$transaction(async (tx) => {
+      const hoaDon = await tx.hoaDonTapHoa.create({
+        data: { maHoaDon, ...hoaDonData } as any,
+      });
+
+      if (chiTietTapHoa?.length) {
+        await tx.chiTietTapHoa.createMany({
+          data: chiTietTapHoa.map((ct) => ({
+            maHoaDon,
+            maHangHoa: ct.maHangHoa,
+            soLuong: ct.soLuong,
+          })),
+        });
+      }
+
+      if (phieuThuHdTh) {
+        await tx.phieuThuHdTh.create({
+          data: { maHoaDon, ...phieuThuHdTh } as any,
+        });
+      }
+
+      const result = await tx.hoaDonTapHoa.findFirst({
+        where: { maHoaDon },
+        include: this.includeAll,
+      });
+      return this.transform(result);
     });
   }
 

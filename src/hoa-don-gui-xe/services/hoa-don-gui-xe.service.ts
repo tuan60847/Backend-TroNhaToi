@@ -9,20 +9,22 @@ import { StatisticsHoaDonGuiXeDto } from '../dto/statistics-hoa-don-gui-xe.dto';
 export class HoaDonGuiXeService {
   constructor(private prisma: PrismaService) {}
 
-  findAll() {
-    return this.prisma.hoaDonGuiXe.findMany({
-      where: { isDelete: false },
-      //include: { phuongTien: { include: { nguoiThue: true } } },
-    });
+  private transform(raw: any) {
+    const { idPT, TrangThai, isDelete, ...rest } = raw;
+    return { ...rest, idPhuongTien: idPT, trangThai: TrangThai };
+  }
+
+  async findAll() {
+    const rows = await this.prisma.hoaDonGuiXe.findMany({ where: { isDelete: false } });
+    return rows.map((r) => this.transform(r));
   }
 
   async findOne(id: number) {
     const item = await this.prisma.hoaDonGuiXe.findFirst({
       where: { maHoaDon: id, isDelete: false },
-      //include: { phuongTien: { include: { nguoiThue: true } } },
     });
     if (!item) throw new NotFoundException(`HoaDonGuiXe với id ${id} không tồn tại`);
-    return item;
+    return this.transform(item);
   }
 
   create(dto: CreateHoaDonGuiXeDto) {
@@ -54,7 +56,7 @@ export class HoaDonGuiXeService {
       where.idPT = idPT;
     }
 
-    const [data, total] = await Promise.all([
+    const [rows, total] = await Promise.all([
       this.prisma.hoaDonGuiXe.findMany({
         where,
         orderBy: { [sortBy]: sort },
@@ -64,7 +66,7 @@ export class HoaDonGuiXeService {
       this.prisma.hoaDonGuiXe.count({ where }),
     ]);
 
-    return { total, data };
+    return { total, data: rows.map((r) => this.transform(r)) };
   }
 
   async statistics(req: StatisticsHoaDonGuiXeDto) {
@@ -99,8 +101,8 @@ export class HoaDonGuiXeService {
     };
   }
 
-  getAllLoadingBalance(id?: number) {
-    return this.prisma.hoaDonGuiXe.findMany({
+  async getAllLoadingBalance(id?: number) {
+    const rows = await this.prisma.hoaDonGuiXe.findMany({
       where: { isDelete: false },
       orderBy: { maHoaDon: 'asc' },
       take: 15,
@@ -108,6 +110,7 @@ export class HoaDonGuiXeService {
         ? { skip: 1, cursor: { maHoaDon: id } }
         : {}),
     });
+    return rows.map((r) => this.transform(r));
   }
 
 }

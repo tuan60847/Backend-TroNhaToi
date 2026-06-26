@@ -8,20 +8,20 @@ import { SearchLapRapDto } from '../dto/search-lap-rap.dto';
 export class LapRapService {
   constructor(private prisma: PrismaService) {}
 
-  findAll() {
-    return this.prisma.lapRap.findMany({
-      where: { isDelete: false },
-      //include: { phong: { select: { phongId: true, tenPhong: true } }, thietBi: true },
-    });
+  private transform(raw: any) {
+    const { phongId, thietBiId, isDelete, ...rest } = raw;
+    return { ...rest, PhongID: phongId, thietBiID: thietBiId };
+  }
+
+  async findAll() {
+    const rows = await this.prisma.lapRap.findMany({ where: { isDelete: false } });
+    return rows.map((r) => this.transform(r));
   }
 
   async findOne(id: number) {
-    const item = await this.prisma.lapRap.findFirst({
-      where: { id: id, isDelete: false },
-      //include: { phong: { select: { phongId: true, tenPhong: true } }, thietBi: true },
-    });
+    const item = await this.prisma.lapRap.findFirst({ where: { id, isDelete: false } });
     if (!item) throw new NotFoundException(`LapRap với id ${id} không tồn tại`);
-    return item;
+    return this.transform(item);
   }
 
   create(dto: CreateLapRapDto) {
@@ -49,7 +49,7 @@ export class LapRapService {
       where.thietBiId = thietBiId;
     }
 
-    const [data, total] = await Promise.all([
+    const [rows, total] = await Promise.all([
       this.prisma.lapRap.findMany({
         where,
         orderBy: { [sortBy]: sort },
@@ -59,18 +59,19 @@ export class LapRapService {
       this.prisma.lapRap.count({ where }),
     ]);
 
-    return { total, data };
+    return { total, data: rows.map((r) => this.transform(r)) };
   }
 
-  getAllLoadingBalance(id?: number) {
-    return this.prisma.lapRap.findMany({
+  async getAllLoadingBalance(id?: number) {
+    const rows = await this.prisma.lapRap.findMany({
       where: { isDelete: false },
       orderBy: { id: 'asc' },
       take: 15,
       ...(id !== undefined && id !== null
-        ? { skip: 1, cursor: { id: id } }
+        ? { skip: 1, cursor: { id } }
         : {}),
     });
+    return rows.map((r) => this.transform(r));
   }
 
 }

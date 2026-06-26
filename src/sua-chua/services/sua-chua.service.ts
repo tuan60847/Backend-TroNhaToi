@@ -8,20 +8,42 @@ import { SearchSuaChuaDto } from '../dto/search-sua-chua.dto';
 export class SuaChuaService {
   constructor(private prisma: PrismaService) {}
 
-  findAll() {
-    return this.prisma.suaChua.findMany({
+  /** Đổi tên key Prisma → key app Flutter đang đọc */
+  private transform(raw: any) {
+    const { hoadonsuachua, phongId, thietBiId, isDelete, ...rest } = raw;
+
+    const suaChua = { ...rest, PhongID: phongId, thietBiId };
+
+    let hoaDonSuaChua: Record<string, any> | null = null;
+    if (hoadonsuachua) {
+      const { maHoaDonSc, trangThai, ngayLapHoaDonSc, idSuaChua, isDelete: _d, ...hdRest } = hoadonsuachua;
+      hoaDonSuaChua = {
+        ...hdRest,
+        maHoaDonSC: maHoaDonSc,
+        TrangThai: trangThai,
+        ngayLapHoaDonSC: ngayLapHoaDonSc,
+        id: idSuaChua,
+      };
+    }
+
+    return { suaChua, hoaDonSuaChua };
+  }
+
+  async findAll() {
+    const rows = await this.prisma.suaChua.findMany({
       where: { isDelete: false },
-    //  include: { phong: { select: { phongId: true, tenPhong: true } }, hoaDonSuaChua: true },
+      include: { hoadonsuachua: true },
     });
+    return rows.map((r) => this.transform(r));
   }
 
   async findOne(id: number) {
     const item = await this.prisma.suaChua.findFirst({
-      where: { id: id, isDelete: false },
-      //include: { phong: { select: { phongId: true, tenPhong: true } }, hoaDonSuaChua: true },
+      where: { id, isDelete: false },
+      include: { hoadonsuachua: true },
     });
     if (!item) throw new NotFoundException(`SuaChua với id ${id} không tồn tại`);
-    return item;
+    return this.transform(item);
   }
 
   create(dto: CreateSuaChuaDto) {
@@ -53,9 +75,10 @@ export class SuaChuaService {
       where.thietBiId = thietBiId;
     }
 
-    const [data, total] = await Promise.all([
+    const [rows, total] = await Promise.all([
       this.prisma.suaChua.findMany({
         where,
+        include: { hoadonsuachua: true },
         orderBy: { [sortBy]: sort },
         take: Number(limit),
         skip: Number(offset),
@@ -63,7 +86,7 @@ export class SuaChuaService {
       this.prisma.suaChua.count({ where }),
     ]);
 
-    return { total, data };
+    return { total, data: rows.map((r) => this.transform(r)) };
   }
 
   getAllLoadingBalance(id?: number) {

@@ -81,6 +81,14 @@ export class PhongService {
     });
   }
 
+  findNguoiThueByPhong(phongId: number) {
+    return this.prisma.hopDong.findMany({
+      where: { phongId, isDelete: false },
+      include: { nguoithue: true },
+      orderBy: { ngayKy: 'desc' },
+    });
+  }
+
   getAllLoadingBalance(id?: number) {
     return this.prisma.phong.findMany({
       where: { isDelete: false },

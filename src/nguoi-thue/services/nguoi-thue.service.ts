@@ -79,6 +79,18 @@ export class NguoiThueService {
     });
   }
 
+  findRoomsByNguoiThue(idnt: number) {
+    return this.prisma.hopDong.findMany({
+      where: { idnt, isDelete: false },
+      include: {
+        phong: {
+          include: { loaiPhong: true },
+        },
+      },
+      orderBy: { ngayKy: 'desc' },
+    });
+  }
+
   getAllLoadingBalance(id?: number) {
     return this.prisma.nguoiThue.findMany({
       where: { isDelete: false },
