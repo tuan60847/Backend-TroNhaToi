@@ -284,3 +284,16 @@ model User {
   createdAt DateTime? @default(now()) @db.DateTime(0)
   updatedAt DateTime? @default(now()) @db.DateTime(0)
 }
+
+model ThongBao {
+  id        Int      @id @default(autoincrement())
+  tieuDe    String   @db.VarChar(255)
+  noiDung   String   @db.Text
+  loai      String   @db.VarChar(50)
+  hopDongId String?  @db.Char(11)
+  soNgayCon Int?
+  daDoc     Boolean  @default(false)
+  taoLuc    DateTime @default(now())
+
+  @@map("thongbao")
+}
