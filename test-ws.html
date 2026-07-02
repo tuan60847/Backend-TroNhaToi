@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Test WebSocket Thông Báo</title>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 24px; max-width: 700px; }
+    #log { background: #1e1e1e; color: #d4d4d4; padding: 16px; border-radius: 8px;
+           min-height: 200px; font-family: monospace; font-size: 13px; white-space: pre-wrap; }
+    button { padding: 8px 18px; margin: 4px; border: none; border-radius: 6px;
+             cursor: pointer; font-size: 14px; }
+    #btn-connect    { background: #4caf50; color: white; }
+    #btn-disconnect { background: #f44336; color: white; }
+    #btn-trigger    { background: #2196f3; color: white; }
+    input { padding: 8px; width: 280px; border: 1px solid #ccc; border-radius: 6px; }
+    .status { font-weight: bold; margin: 8px 0; }
+    .connected    { color: #4caf50; }
+    .disconnected { color: #f44336; }
+  </style>
+</head>
+<body>
+  <h2>Test WebSocket — Thông Báo Hợp Đồng</h2>
+
+  <div>
+    <label>Server URL: </label>
+    <input id="url" value="http://localhost:3000" />
+  </div>
+  <br/>
+  <div>
+    <label>JWT Token (cho trigger job): </label>
+    <input id="token" placeholder="Bearer eyJ..." style="width:400px"/>
+  </div>
+  <br/>
+  <button id="btn-connect">Kết nối WebSocket</button>
+  <button id="btn-disconnect">Ngắt kết nối</button>
+  <button id="btn-trigger">Trigger Job thủ công (POST)</button>
+  <button onclick="document.getElementById('log').textContent=''">Xoá log</button>
+
+  <p class="status">Trạng thái: <span id="status" class="disconnected">Chưa kết nối</span></p>
+
+  <div id="log">Nhấn "Kết nối WebSocket" để bắt đầu...\n</div>
+
+  <script>
+    let socket = null;
+
+    function log(msg, color) {
+      const el = document.getElementById('log');
+      const time = new Date().toLocaleTimeString('vi-VN');
+      const line = color
+        ? `\x1b[0m[${time}] ${msg}`
+        : `[${time}] ${msg}`;
+      el.textContent += `[${time}] ${msg}\n`;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    document.getElementById('btn-connect').onclick = () => {
+      const url = document.getElementById('url').value.trim();
+      if (socket) socket.disconnect();
+
+      socket = io(`${url}/thong-bao`, { transports: ['websocket'] });
+
+      socket.on('connect', () => {
+        document.getElementById('status').textContent = `Đã kết nối (id: ${socket.id})`;
+        document.getElementById('status').className = 'connected';
+        log(`✅ Kết nối thành công! Socket ID: ${socket.id}`);
+      });
+
+      socket.on('disconnect', () => {
+        document.getElementById('status').textContent = 'Chưa kết nối';
+        document.getElementById('status').className = 'disconnected';
+        log('❌ Ngắt kết nối');
+      });
+
+      socket.on('thong-bao-moi', (data) => {
+        log(`🔔 Nhận sự kiện "thong-bao-moi":\n${JSON.stringify(data, null, 2)}`);
+      });
+
+      socket.on('connect_error', (err) => {
+        log(`⚠️ Lỗi kết nối: ${err.message}`);
+      });
+    };
+
+    document.getElementById('btn-disconnect').onclick = () => {
+      if (socket) { socket.disconnect(); socket = null; }
+    };
+
+    document.getElementById('btn-trigger').onclick = async () => {
+      const url = document.getElementById('url').value.trim();
+      const token = document.getElementById('token').value.trim();
+      log('🚀 Gọi POST /thong-bao/trigger-job...');
+      try {
+        const res = await fetch(`${url}/thong-bao/trigger-job`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: token.startsWith('Bearer') ? token : `Bearer ${token}` } : {}),
+          },
+        });
+        const text = await res.text();
+        log(`📬 Response ${res.status}: ${text || '(empty)'}`);
+      } catch (e) {
+        log(`❌ Lỗi fetch: ${e.message}`);
+      }
+    };
+  </script>
+</body>
+</html>
