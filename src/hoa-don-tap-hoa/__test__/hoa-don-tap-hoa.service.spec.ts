@@ -13,6 +13,14 @@ const mockPrisma = {
     count:     jest.fn(),
     aggregate: jest.fn(),
   },
+  chiTietTapHoa: {
+    updateMany: jest.fn(),
+    createMany: jest.fn(),
+  },
+  phieuThuHdTh: {
+    create: jest.fn(),
+  },
+  $transaction: jest.fn((cb: any) => cb(mockPrisma)),
 };
 
 // ─── Fixtures ────────────────────────────────────────────────────────

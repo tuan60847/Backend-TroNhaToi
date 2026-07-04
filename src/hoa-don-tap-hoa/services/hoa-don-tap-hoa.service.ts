@@ -23,6 +23,14 @@ export class HoaDonTapHoaService {
     phieuThuHdTh: { where: { isDelete: false } },
   } as const;
 
+  // App Flutter hiện chỉ hiển thị 1 phiếu thu/hóa đơn (field `phieuThu`, object đơn):
+  // lấy phiếu thu mới nhất để giữ tương thích ngược, đồng thời trả thêm
+  // `dsPhieuThu`/`daThu` cho các client cần đầy đủ danh sách nhiều phiếu thu.
+  private latestPhieuThu(list: any[]) {
+    if (!list?.length) return null;
+    return [...list].sort((a, b) => (b.maPhieuThu ?? 0) - (a.maPhieuThu ?? 0))[0];
+  }
+
   /** Chuyển raw Prisma record sang shape mà app Flutter mong đợi */
   private transform(raw: any) {
     const { nguoiThue, chiTietTapHoa = [], phieuThuHdTh = [], ...rest } = raw;
@@ -45,6 +53,7 @@ export class HoaDonTapHoaService {
     return {
       ...rest,
       tenNguoiMua: nguoiThue?.hoTen ?? null,
+      phieuThu: this.latestPhieuThu(phieuThuHdTh),
       dsPhieuThu: phieuThuHdTh,
       daThu,
       dsHangHoa,
@@ -106,9 +115,9 @@ export class HoaDonTapHoaService {
         });
       }
 
-      if (phieuThuHdTh?.length) {
-        await tx.phieuThuHdTh.createMany({
-          data: phieuThuHdTh.map((pt) => ({ maHoaDon, ...pt })),
+      if (phieuThuHdTh) {
+        await tx.phieuThuHdTh.create({
+          data: { maHoaDon, ...phieuThuHdTh } as any,
         });
       }
 
@@ -120,18 +129,44 @@ export class HoaDonTapHoaService {
     });
   }
 
-  // Không xử lý phieuThuHdTh ở đây nữa: 1 hóa đơn có thể có nhiều phiếu thu,
-  // việc thêm/sửa/xóa từng phiếu thu được thực hiện qua endpoint /phieu-thu-hdth.
+  // FE gửi lại toàn bộ `chiTietTapHoa` mỗi khi sửa hóa đơn (thêm/bớt/đổi số lượng
+  // hàng hóa) — cần thay thế toàn bộ chi tiết cũ bằng danh sách mới, nếu không
+  // tongTien sẽ bị lệch so với chi tiết hàng hóa thực tế lưu trong DB.
+  //
+  // FE cũng gửi `phieuThuHdTh` (1 object) mỗi khi đánh dấu hóa đơn đã thu tiền.
+  // Vì 1 hóa đơn có thể có nhiều phiếu thu, mỗi lần sửa kèm phieuThuHdTh sẽ
+  // ghi thêm 1 phiếu thu mới (không upsert/ghi đè phiếu thu cũ).
   async update(id: string, dto: UpdateHoaDonTapHoaDto) {
     await this.findOne(id);
+    const { chiTietTapHoa, phieuThuHdTh, ...hoaDonData } = dto;
 
-    return this.prisma.hoaDonTapHoa.update({
-      where: { maHoaDon: id },
-      data: {
-        idnt: dto.idnt,
-        ngayBan: dto.ngayBan,
-        tongTien: dto.tongTien,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      if (chiTietTapHoa) {
+        await tx.chiTietTapHoa.updateMany({
+          where: { maHoaDon: id, isDelete: false },
+          data: { isDelete: true },
+        });
+
+        if (chiTietTapHoa.length) {
+          await tx.chiTietTapHoa.createMany({
+            data: chiTietTapHoa.map((ct) => ({
+              maHoaDon: id,
+              maHangHoa: ct.maHangHoa,
+              soLuong: ct.soLuong,
+            })),
+          });
+        }
+      }
+
+      return tx.hoaDonTapHoa.update({
+        where: { maHoaDon: id },
+        data: {
+          idnt: hoaDonData.idnt,
+          ngayBan: hoaDonData.ngayBan,
+          tongTien: hoaDonData.tongTien,
+          phieuThuHdTh: phieuThuHdTh ? { create: phieuThuHdTh } : undefined,
+        },
+      });
     });
   }
 
@@ -231,7 +266,10 @@ export class HoaDonTapHoaService {
     return data.map(({ nguoiThue, phieuThuHdTh, ...hoaDon }) => ({
       hoaDon,
 
+      // app Flutter đọc field `phieuThu` (object đơn, phiếu thu mới nhất)
+      phieuThu: this.latestPhieuThu(phieuThuHdTh),
       dsPhieuThu: phieuThuHdTh,
+      daThu: phieuThuHdTh.reduce((sum: number, pt: any) => sum + Number(pt.soTien ?? 0), 0),
 
       tenNguoiMua: nguoiThue?.hoTen ?? null,
     }));
