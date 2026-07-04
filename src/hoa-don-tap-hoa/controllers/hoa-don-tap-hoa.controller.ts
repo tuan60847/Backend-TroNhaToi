@@ -20,10 +20,12 @@ export class HoaDonTapHoaController {
     return this.hoaDonTapHoaService.create(dto);
   }
 
-  @Get()
+  @Get('findAll')
   @ApiOperation({ summary: 'Danh sách Hóa Đơn Tạp Hóa' })
   findAll() {
-    return this.hoaDonTapHoaService.findAll();
+    //Test 
+    //return this.hoaDonTapHoaService.findAll();
+    return this.hoaDonTapHoaService.findDSHangHoaModel();
   }
 
   @Get('search')

@@ -7,11 +7,19 @@ import { StatisticsHoaDonTapHoaDto } from '../dto/statistics-hoa-don-tap-hoa.dto
 
 @Injectable()
 export class HoaDonTapHoaService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
+
+
 
   private readonly includeAll = {
     nguoiThue: true,
     chiTietTapHoa: { where: { isDelete: false }, include: { hangHoa: true } },
+    phieuThuHdTh: true,
+  } as const;
+
+
+  private readonly selectAll = {
+    nguoiThue: true,
     phieuThuHdTh: true,
   } as const;
 
@@ -43,7 +51,7 @@ export class HoaDonTapHoaService {
   async findAll() {
     const rows = await this.prisma.hoaDonTapHoa.findMany({
       where: { isDelete: false },
-      include: this.includeAll,
+      include: this.selectAll,
     });
     return rows.map((r) => this.transform(r));
   }
@@ -51,7 +59,7 @@ export class HoaDonTapHoaService {
   async findOne(id: string) {
     const item = await this.prisma.hoaDonTapHoa.findFirst({
       where: { maHoaDon: id, isDelete: false },
-      include: this.includeAll,
+      include: this.selectAll,
     });
     if (!item) throw new NotFoundException(`HoaDonTapHoa với id ${id} không tồn tại`);
     return this.transform(item);
@@ -108,9 +116,30 @@ export class HoaDonTapHoaService {
     });
   }
 
+  // async update(id: string, dto: UpdateHoaDonTapHoaDto) {
+  //   await this.findOne(id);
+  //   return this.prisma.hoaDonTapHoa.update({ where: { maHoaDon: id }, data: dto as any });
+  // }
+
   async update(id: string, dto: UpdateHoaDonTapHoaDto) {
     await this.findOne(id);
-    return this.prisma.hoaDonTapHoa.update({ where: { maHoaDon: id }, data: dto as any });
+
+    return this.prisma.hoaDonTapHoa.update({
+      where: { maHoaDon: id },
+      data: {
+        idnt: dto.idnt,
+        ngayBan: dto.ngayBan,
+        tongTien: dto.tongTien,
+        phieuThuHdTh: dto.phieuThuHdTh
+          ? {
+            upsert: {
+              create: dto.phieuThuHdTh,
+              update: dto.phieuThuHdTh,
+            },
+          }
+          : undefined,
+      },
+    });
   }
 
   async remove(id: string) {
@@ -189,5 +218,31 @@ export class HoaDonTapHoaService {
         : {}),
     });
   }
+
+  // Get Danh sách Hàng Hoá Model
+  async findDSHangHoaModel() {
+    const data = await this.prisma.hoaDonTapHoa.findMany({
+      where: {
+        isDelete: false,
+      },
+      include: {
+        nguoiThue: {
+          select: {
+            hoTen: true,
+          },
+        },
+        phieuThuHdTh: true,
+      },
+    });
+
+    return data.map(({ nguoiThue, phieuThuHdTh, ...hoaDon }) => ({
+      hoaDon,
+
+      phieuThu: phieuThuHdTh,
+
+      tenNguoiMua: nguoiThue?.hoTen ?? null,
+    }));
+  }
+
 
 }
