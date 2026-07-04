@@ -14,18 +14,18 @@ export class HoaDonTapHoaService {
   private readonly includeAll = {
     nguoiThue: true,
     chiTietTapHoa: { where: { isDelete: false }, include: { hangHoa: true } },
-    phieuThuHdTh: true,
+    phieuThuHdTh: { where: { isDelete: false } },
   } as const;
 
 
   private readonly selectAll = {
     nguoiThue: true,
-    phieuThuHdTh: true,
+    phieuThuHdTh: { where: { isDelete: false } },
   } as const;
 
   /** Chuyển raw Prisma record sang shape mà app Flutter mong đợi */
   private transform(raw: any) {
-    const { nguoiThue, chiTietTapHoa = [], phieuThuHdTh, ...rest } = raw;
+    const { nguoiThue, chiTietTapHoa = [], phieuThuHdTh = [], ...rest } = raw;
 
     const dsHangHoa = chiTietTapHoa
       .filter((ct: any) => ct.hangHoa != null)
@@ -39,10 +39,14 @@ export class HoaDonTapHoaService {
       }
     }
 
+    // 1 hóa đơn tạp hóa có thể có nhiều phiếu thu (thu nhiều lần)
+    const daThu = phieuThuHdTh.reduce((sum: number, pt: any) => sum + Number(pt.soTien ?? 0), 0);
+
     return {
       ...rest,
       tenNguoiMua: nguoiThue?.hoTen ?? null,
-      phieuThu: phieuThuHdTh ?? null,
+      dsPhieuThu: phieuThuHdTh,
+      daThu,
       dsHangHoa,
       soLuong,
     };
@@ -102,9 +106,9 @@ export class HoaDonTapHoaService {
         });
       }
 
-      if (phieuThuHdTh) {
-        await tx.phieuThuHdTh.create({
-          data: { maHoaDon, ...phieuThuHdTh } as any,
+      if (phieuThuHdTh?.length) {
+        await tx.phieuThuHdTh.createMany({
+          data: phieuThuHdTh.map((pt) => ({ maHoaDon, ...pt })),
         });
       }
 
@@ -116,11 +120,8 @@ export class HoaDonTapHoaService {
     });
   }
 
-  // async update(id: string, dto: UpdateHoaDonTapHoaDto) {
-  //   await this.findOne(id);
-  //   return this.prisma.hoaDonTapHoa.update({ where: { maHoaDon: id }, data: dto as any });
-  // }
-
+  // Không xử lý phieuThuHdTh ở đây nữa: 1 hóa đơn có thể có nhiều phiếu thu,
+  // việc thêm/sửa/xóa từng phiếu thu được thực hiện qua endpoint /phieu-thu-hdth.
   async update(id: string, dto: UpdateHoaDonTapHoaDto) {
     await this.findOne(id);
 
@@ -130,14 +131,6 @@ export class HoaDonTapHoaService {
         idnt: dto.idnt,
         ngayBan: dto.ngayBan,
         tongTien: dto.tongTien,
-        phieuThuHdTh: dto.phieuThuHdTh
-          ? {
-            upsert: {
-              create: dto.phieuThuHdTh,
-              update: dto.phieuThuHdTh,
-            },
-          }
-          : undefined,
       },
     });
   }
@@ -231,14 +224,14 @@ export class HoaDonTapHoaService {
             hoTen: true,
           },
         },
-        phieuThuHdTh: true,
+        phieuThuHdTh: { where: { isDelete: false } },
       },
     });
 
     return data.map(({ nguoiThue, phieuThuHdTh, ...hoaDon }) => ({
       hoaDon,
 
-      phieuThu: phieuThuHdTh,
+      dsPhieuThu: phieuThuHdTh,
 
       tenNguoiMua: nguoiThue?.hoTen ?? null,
     }));

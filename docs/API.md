@@ -435,14 +435,21 @@ Trả về thông tin tài khoản hiện tại từ JWT.
     { "maHangHoa": 1, "soLuong": 5 },
     { "maHangHoa": 3, "soLuong": 2 }
   ],
-  "phieuThuHdTh": {
-    "ngayThu": "2026-06-26",
-    "soTien": 50000,
-    "nguoiDong": "Nguyễn Văn A"
-  }
+  "phieuThuHdTh": [
+    {
+      "ngayThu": "2026-06-26",
+      "soTien": 30000,
+      "nguoiDong": "Nguyễn Văn A"
+    },
+    {
+      "ngayThu": "2026-06-28",
+      "soTien": 20000,
+      "nguoiDong": "Nguyễn Văn A"
+    }
+  ]
 }
 ```
-> `chiTietTapHoa` và `phieuThuHdTh` đều optional. Nếu truyền vào, được tạo trong cùng 1 transaction.
+> `chiTietTapHoa` và `phieuThuHdTh` đều optional. Nếu truyền vào, được tạo trong cùng 1 transaction. **1 hóa đơn tạp hóa có thể có nhiều phiếu thu** (thu tiền nhiều lần), tương tự có thể thêm phiếu thu sau qua `POST /phieu-thu-hdth`.
 
 **Response (findAll / findOne) — key đã transform:**
 ```json
@@ -452,13 +459,23 @@ Trả về thông tin tài khoản hiện tại từ JWT.
   "ngayBan": "2026-06-26T00:00:00.000Z",
   "tongTien": 50000,
   "tenNguoiMua": "Nguyễn Văn A",
-  "phieuThu": {
-    "maPhieuThu": 1,
-    "maHoaDon": "TH20260626001",
-    "ngayThu": "2026-06-26T00:00:00.000Z",
-    "soTien": 50000,
-    "nguoiDong": "Nguyễn Văn A"
-  },
+  "dsPhieuThu": [
+    {
+      "maPhieuThu": 1,
+      "maHoaDon": "TH20260626001",
+      "ngayThu": "2026-06-26T00:00:00.000Z",
+      "soTien": 30000,
+      "nguoiDong": "Nguyễn Văn A"
+    },
+    {
+      "maPhieuThu": 2,
+      "maHoaDon": "TH20260626001",
+      "ngayThu": "2026-06-28T00:00:00.000Z",
+      "soTien": 20000,
+      "nguoiDong": "Nguyễn Văn A"
+    }
+  ],
+  "daThu": 50000,
   "dsHangHoa": [
     { "maHangHoa": 1, "tenHangHoa": "Mì gói", "giaBan": 5000 },
     { "maHangHoa": 3, "tenHangHoa": "Nước ngọt", "giaBan": 10000 }
@@ -466,7 +483,7 @@ Trả về thông tin tài khoản hiện tại từ JWT.
   "soLuong": { "1": 5, "3": 2 }
 }
 ```
-> `soLuong` là map `{ [maHangHoa]: soLuong }`. Sau JSON serialize, key là **string** (không phải int).
+> `dsPhieuThu` là **mảng** (1 hóa đơn có thể có nhiều phiếu thu). `daThu` là tổng số tiền đã thu (cộng dồn `soTien` của các phiếu thu chưa xóa). `soLuong` là map `{ [maHangHoa]: soLuong }`. Sau JSON serialize, key là **string** (không phải int).
 
 **`GET /hoa-don-tap-hoa/statistics` — Response:**
 ```json
@@ -738,7 +755,7 @@ Trả về thông tin tài khoản hiện tại từ JWT.
 7. Tạo PhieuThuHangThang (maHoaDon)
 8. Đăng ký PhuongTien (idnt)
 9. Tạo HoaDonGuiXe (bienSo)
-10. Tạo HoaDonTapHoa (idnt + chiTietTapHoa + phieuThuHdTh)  ← 1 request duy nhất
+10. Tạo HoaDonTapHoa (idnt + chiTietTapHoa + phieuThuHdTh[])  ← 1 request duy nhất, có thể kèm nhiều phiếu thu
 11. Tạo SuaChua (phongId) → Tạo HoaDonSuaChua (idSuaChua)
 ```
 
@@ -763,5 +780,5 @@ Một số module đổi tên key Prisma trước khi trả về để khớp v�
 | HoaDonSuaChua | `ngayLapHoaDonSc` | `hoaDonSuaChua.ngayLapHoaDonSC` |
 | HoaDonSuaChua | `idSuaChua` | `hoaDonSuaChua.id` |
 | HoaDonTapHoa | `nguoiThue.hoTen` | `tenNguoiMua` |
-| HoaDonTapHoa | `phieuThuHdTh` | `phieuThu` |
+| HoaDonTapHoa | `phieuThuHdTh` (mảng, nhiều phiếu thu) | `dsPhieuThu` + `daThu` (tổng đã thu) |
 | Phong/listNguoiThue | relation | `nguoithue` (chữ thường) |

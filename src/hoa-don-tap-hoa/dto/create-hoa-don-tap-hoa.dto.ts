@@ -62,11 +62,12 @@ export class CreateHoaDonTapHoaDto {
   @Type(() => CreateChiTietTapHoaInlineDto)
   chiTietTapHoa?: CreateChiTietTapHoaInlineDto[];
 
-  @ApiPropertyOptional({ description: 'Phiếu thu (nếu có)', type: CreatePhieuThuInlineDto })
+  @ApiPropertyOptional({ description: 'Danh sách phiếu thu (nếu có, 1 hóa đơn có thể có nhiều phiếu thu)', type: [CreatePhieuThuInlineDto] })
   @IsOptional()
-  @ValidateNested()
+  @IsArray()
+  @ValidateNested({ each: true })
   @Type(() => CreatePhieuThuInlineDto)
-  phieuThuHdTh?: CreatePhieuThuInlineDto;
+  phieuThuHdTh?: CreatePhieuThuInlineDto[];
 }
 
 export class UpdateHoaDonTapHoaDto extends PartialType(CreateHoaDonTapHoaDto) {}

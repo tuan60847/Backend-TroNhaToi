@@ -241,7 +241,7 @@ Backend transform một số key để khớp với Flutter app:
 | LapRap | `phongId`, `thietBiId` | `PhongID`, `thietBiID` |
 | ThietBi | `thietBiId` | `thietBiID` |
 | SuaChua | wrapped | `{ suaChua: { PhongID }, hoaDonSuaChua: { maHoaDonSC, TrangThai, ngayLapHoaDonSC } }` |
-| HoaDonTapHoa | flattened | `{ tenNguoiMua, phieuThu, dsHangHoa[], soLuong{} }` |
+| HoaDonTapHoa | flattened | `{ tenNguoiMua, dsPhieuThu[], daThu, dsHangHoa[], soLuong{} }` |
 
 ---
 
@@ -345,7 +345,7 @@ Xem chi tiết: [`docs/API.md`](./docs/API.md)
 | **PhuongTien** | `/phuong-tien` | **String** | ✅ | — | PK = bienSo |
 | HoaDonGuiXe | `/hoa-don-gui-xe` | Int | ✅ | ✅ | transform: `idPT`→`idPhuongTien` |
 | HangHoa | `/hang-hoa` | Int | ✅ | — | search-by-name |
-| HoaDonTapHoa | `/hoa-don-tap-hoa` | **String** | ✅ | ✅ | maHoaDon tự sinh `TH+YYYYMMDD+STT`; POST nhận inline chiTietTapHoa + phieuThu |
+| HoaDonTapHoa | `/hoa-don-tap-hoa` | **String** | ✅ | ✅ | maHoaDon tự sinh `TH+YYYYMMDD+STT`; POST nhận inline chiTietTapHoa + phieuThuHdTh[] (nhiều phiếu thu) |
 | ChiTietTapHoa | `/chi-tiet-tap-hoa` | Int | ✅ | — | Thường tạo inline qua HoaDonTapHoa |
 | PhieuThuHdTh | `/phieu-thu-hdth` | Int | ✅ | — | Thường tạo inline qua HoaDonTapHoa |
 | ThietBi | `/thiet-bi` | Int | ✅ | — | transform: `thietBiId`→`thietBiID` |
