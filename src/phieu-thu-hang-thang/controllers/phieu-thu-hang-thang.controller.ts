@@ -33,7 +33,7 @@ export class PhieuThuHangThangController {
   }
 
   @Get('statistics')
-  @ApiOperation({ summary: 'Thống kê Phiếu Thu Hàng Tháng (tổng tiền đã thu, số phiếu theo tháng)' })
+  @ApiOperation({ summary: 'Thống kê Phiếu Thu Hàng Tháng theo năm (tổng đã thu theo 12 tháng)' })
   statistics(@Query() dto: StatisticsPhieuThuHangThangDto) {
     return this.phieuThuHangThangService.statistics(dto);
   }

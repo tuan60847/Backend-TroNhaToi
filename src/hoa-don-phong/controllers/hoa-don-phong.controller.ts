@@ -33,7 +33,7 @@ export class HoaDonPhongController {
   }
 
   @Get('statistics')
-  @ApiOperation({ summary: 'Thống kê Hóa Đơn Phòng (tổng doanh thu, số hóa đơn theo tháng)' })
+  @ApiOperation({ summary: 'Thống kê Hóa Đơn Phòng theo năm (tổng thu, còn nợ theo 12 tháng)' })
   statistics(@Query() dto: StatisticsHoaDonPhongDto) {
     return this.hoaDonPhongService.statistics(dto);
   }

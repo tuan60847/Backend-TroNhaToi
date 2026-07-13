@@ -59,44 +59,38 @@ export class PhieuThuHangThangService {
     return { total, data };
   }
 
+  // Thống kê theo năm: đủ 12 tháng, tháng không có phiếu thu vẫn hiện 0.
   async statistics(req: StatisticsPhieuThuHangThangDto) {
-    const { from, to } = req;
-    const where: any = { isDelete: false };
+    const year = req.year ?? new Date().getFullYear();
+    const from = new Date(Date.UTC(year, 0, 1));
+    const to = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
 
-    if (from || to) {
-      where.ngayThu = {};
-      if (from) where.ngayThu.gte = new Date(from);
-      if (to) where.ngayThu.lte = new Date(to);
-    }
+    const items = await this.prisma.phieuThuHangThang.findMany({
+      where: { isDelete: false, ngayThu: { gte: from, lte: to } },
+      select: { ngayThu: true, soTien: true },
+    });
 
-    const [aggregate, items] = await Promise.all([
-      this.prisma.phieuThuHangThang.aggregate({
-        where,
-        _sum: { soTien: true },
-        _count: { maPhieuThu: true },
-      }),
-      this.prisma.phieuThuHangThang.findMany({
-        where,
-        select: { ngayThu: true, soTien: true },
-      }),
-    ]);
+    const byMonth = Array.from({ length: 12 }, (_, i) => ({
+      month: `${year}-${String(i + 1).padStart(2, '0')}`,
+      totalReceipts: 0,
+      totalCollected: 0,
+    }));
 
-    const byMonthMap = new Map<string, { totalReceipts: number; totalCollected: number }>();
+    let totalCollected = 0;
     for (const item of items) {
       if (!item.ngayThu) continue;
-      const month = item.ngayThu.toISOString().slice(0, 7);
-      const cur = byMonthMap.get(month) ?? { totalReceipts: 0, totalCollected: 0 };
-      cur.totalReceipts += 1;
-      cur.totalCollected += Number(item.soTien ?? 0);
-      byMonthMap.set(month, cur);
+      const monthIndex = item.ngayThu.getUTCMonth();
+      const soTien = Number(item.soTien ?? 0);
+      byMonth[monthIndex].totalReceipts += 1;
+      byMonth[monthIndex].totalCollected += soTien;
+      totalCollected += soTien;
     }
 
     return {
-      totalReceipts: aggregate._count.maPhieuThu,
-      totalCollected: Number(aggregate._sum.soTien ?? 0),
-      byMonth: Array.from(byMonthMap.entries())
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([month, v]) => ({ month, ...v })),
+      year,
+      totalReceipts: items.length,
+      totalCollected,
+      byMonth,
     };
   }
 

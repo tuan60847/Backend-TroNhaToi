@@ -21,6 +21,14 @@ const CREATE_DTO = {"phongId": 1, "nguyenNhan": "Điều hòa hỏng quạt", "n
 const UPDATE_DTO = {"nguyenNhan": "Thay quạt mới"};
 const MOCK_ITEM  = { id: 1, ...CREATE_DTO };
 
+// raw Prisma record như trả về khi include: { hoadonsuachua: true }
+const MOCK_RAW_FULL = { ...MOCK_ITEM, hoadonsuachua: null };
+// shape mà transform() trả về cho FE (dùng cho findAll/findOne/search)
+const MOCK_TRANSFORMED = {
+  suaChua: { id: 1, nguyenNhan: CREATE_DTO.nguyenNhan, ngaySuaChua: CREATE_DTO.ngaySuaChua, PhongID: 1 },
+  hoaDonSuaChua: null,
+};
+
 describe('SuaChuaService', () => {
   let service: SuaChuaService;
 
@@ -33,7 +41,7 @@ describe('SuaChuaService', () => {
     }).compile();
 
     service = module.get<SuaChuaService>(SuaChuaService);
-    jest.clearAllMocks();
+    jest.resetAllMocks();
   });
 
   // ── Smoke ──────────────────────────────────────────────────────────
@@ -44,9 +52,9 @@ describe('SuaChuaService', () => {
   // ── findAll ────────────────────────────────────────────────────────
   describe('findAll()', () => {
     it('trả về mảng khi có dữ liệu', async () => {
-      mockPrisma.suaChua.findMany.mockResolvedValue([MOCK_ITEM]);
+      mockPrisma.suaChua.findMany.mockResolvedValue([MOCK_RAW_FULL]);
       const result = await service.findAll();
-      expect(result).toEqual([MOCK_ITEM]);
+      expect(result).toEqual([MOCK_TRANSFORMED]);
       expect(mockPrisma.suaChua.findMany).toHaveBeenCalledTimes(1);
     });
 
@@ -59,9 +67,9 @@ describe('SuaChuaService', () => {
   // ── findOne ────────────────────────────────────────────────────────
   describe('findOne()', () => {
     it('trả về record khi tìm thấy', async () => {
-      mockPrisma.suaChua.findFirst.mockResolvedValue(MOCK_ITEM);
+      mockPrisma.suaChua.findFirst.mockResolvedValue(MOCK_RAW_FULL);
       const result = await service.findOne(VALID_ID as any);
-      expect(result).toEqual(MOCK_ITEM);
+      expect(result).toEqual(MOCK_TRANSFORMED);
       expect(mockPrisma.suaChua.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: VALID_ID, isDelete: false } }),
       );
@@ -156,12 +164,12 @@ describe('SuaChuaService', () => {
   // ── search ─────────────────────────────────────────────────────────
   describe('search()', () => {
     it('tìm theo từ khóa q (nguyenNhan) và lọc phongId/thietBiId', async () => {
-      mockPrisma.suaChua.findMany.mockResolvedValue([MOCK_ITEM]);
+      mockPrisma.suaChua.findMany.mockResolvedValue([MOCK_RAW_FULL]);
       mockPrisma.suaChua.count.mockResolvedValue(1);
 
       const result = await service.search({ q: 'quạt', phongId: 1, thietBiId: 2 } as any);
 
-      expect(result).toEqual({ total: 1, data: [MOCK_ITEM] });
+      expect(result).toEqual({ total: 1, data: [MOCK_TRANSFORMED] });
       expect(mockPrisma.suaChua.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { isDelete: false, nguyenNhan: { contains: 'quạt' }, phongId: 1, thietBiId: 2 },

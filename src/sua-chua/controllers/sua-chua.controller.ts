@@ -4,6 +4,7 @@ import { SuaChuaService } from '../services/sua-chua.service';
 import { CreateSuaChuaDto } from '../dto/create-sua-chua.dto';
 import { UpdateSuaChuaDto } from '../dto/update-sua-chua.dto';
 import { SearchSuaChuaDto } from '../dto/search-sua-chua.dto';
+import { ThongKeThietBiSuaChuaDto } from '../dto/thong-ke-thiet-bi-sua-chua.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Sửa Chữa')
@@ -36,6 +37,12 @@ export class SuaChuaController {
   @ApiQuery({ name: 'id', required: false, description: 'ID cuối cùng đã tải, bỏ trống để lấy 15 phần tử đầu' })
   getAllLoadingBalance(@Query('id') id?: string) {
     return this.suaChuaService.getAllLoadingBalance(id !== undefined ? Number(id) : undefined);
+  }
+
+  @Get('statistics/thiet-bi-nhieu-nhat')
+  @ApiOperation({ summary: 'Thiết bị có nhiều lịch sử sửa chữa nhất trong 1 tháng' })
+  thietBiSuaChuaNhieuNhat(@Query() dto: ThongKeThietBiSuaChuaDto) {
+    return this.suaChuaService.thietBiSuaChuaNhieuNhat(dto);
   }
 
   @Get(':id')

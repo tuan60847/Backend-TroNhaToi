@@ -20,6 +20,8 @@ const INVALID_ID = 9999;
 const CREATE_DTO = {"tenThietBi": "Điều hòa Panasonic", "loai": "Điều hòa", "giaTri": 8000000, "ngayMua": "2023-06-01", "trangThai": 1};
 const UPDATE_DTO = {"trangThai": 2, "giaTri": 7000000};
 const MOCK_ITEM  = { thietBiId: 1, ...CREATE_DTO };
+// shape mà transform() trả về cho FE (đổi thietBiId -> thietBiID)
+const MOCK_TRANSFORMED = { ...CREATE_DTO, thietBiID: 1 };
 
 describe('ThietBiService', () => {
   let service: ThietBiService;
@@ -33,7 +35,7 @@ describe('ThietBiService', () => {
     }).compile();
 
     service = module.get<ThietBiService>(ThietBiService);
-    jest.clearAllMocks();
+    jest.resetAllMocks();
   });
 
   // ── Smoke ──────────────────────────────────────────────────────────
@@ -46,7 +48,7 @@ describe('ThietBiService', () => {
     it('trả về mảng khi có dữ liệu', async () => {
       mockPrisma.thietBi.findMany.mockResolvedValue([MOCK_ITEM]);
       const result = await service.findAll();
-      expect(result).toEqual([MOCK_ITEM]);
+      expect(result).toEqual([MOCK_TRANSFORMED]);
       expect(mockPrisma.thietBi.findMany).toHaveBeenCalledTimes(1);
     });
 
@@ -61,7 +63,7 @@ describe('ThietBiService', () => {
     it('trả về record khi tìm thấy', async () => {
       mockPrisma.thietBi.findFirst.mockResolvedValue(MOCK_ITEM);
       const result = await service.findOne(VALID_ID as any);
-      expect(result).toEqual(MOCK_ITEM);
+      expect(result).toEqual(MOCK_TRANSFORMED);
       expect(mockPrisma.thietBi.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({ where: { thietBiId: VALID_ID, isDelete: false } }),
       );
@@ -161,7 +163,7 @@ describe('ThietBiService', () => {
 
       const result = await service.search({ q: 'Panasonic' } as any);
 
-      expect(result).toEqual({ total: 1, data: [MOCK_ITEM] });
+      expect(result).toEqual({ total: 1, data: [MOCK_TRANSFORMED] });
       expect(mockPrisma.thietBi.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {
@@ -206,7 +208,7 @@ describe('ThietBiService', () => {
     it('tìm theo tên (tenThietBi contains) và trả về mảng', async () => {
       mockPrisma.thietBi.findMany.mockResolvedValue([MOCK_ITEM]);
       const result = await service.searchByName('Panasonic');
-      expect(result).toEqual([MOCK_ITEM]);
+      expect(result).toEqual([MOCK_TRANSFORMED]);
       expect(mockPrisma.thietBi.findMany).toHaveBeenCalledWith({
         where: { tenThietBi: { contains: 'Panasonic' }, isDelete: false },
       });
@@ -223,7 +225,7 @@ describe('ThietBiService', () => {
     it('lấy 15 phần tử đầu khi không truyền id', async () => {
       mockPrisma.thietBi.findMany.mockResolvedValue([MOCK_ITEM]);
       const result = await service.getAllLoadingBalance();
-      expect(result).toEqual([MOCK_ITEM]);
+      expect(result).toEqual([MOCK_TRANSFORMED]);
       expect(mockPrisma.thietBi.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { isDelete: false },
@@ -236,7 +238,7 @@ describe('ThietBiService', () => {
     it('lấy 15 phần tử tiếp theo kể từ id truyền vào (cursor)', async () => {
       mockPrisma.thietBi.findMany.mockResolvedValue([MOCK_ITEM]);
       const result = await service.getAllLoadingBalance(VALID_ID as any);
-      expect(result).toEqual([MOCK_ITEM]);
+      expect(result).toEqual([MOCK_TRANSFORMED]);
       expect(mockPrisma.thietBi.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { isDelete: false },

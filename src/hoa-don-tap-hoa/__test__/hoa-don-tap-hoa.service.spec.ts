@@ -30,6 +30,21 @@ const CREATE_DTO = {"idnt": 1, "ngayBan": "2024-01-15", "tongTien": 50000};
 const UPDATE_DTO = {"tongTien": 75000};
 const MOCK_ITEM  = { maHoaDon: VALID_ID, ...CREATE_DTO };
 
+// raw Prisma record như trả về khi include selectAll (nguoiThue, phieuThuHdTh)
+const MOCK_RAW_FULL = { ...MOCK_ITEM, nguoiThue: null, phieuThuHdTh: [] };
+// raw Prisma record như trả về khi include includeAll (thêm chiTietTapHoa)
+const CREATE_RAW_FULL = { ...MOCK_ITEM, nguoiThue: null, chiTietTapHoa: [], phieuThuHdTh: [] };
+// shape mà transform() trả về cho FE (dùng chung cho findAll/findOne/create vì cùng dữ liệu gốc)
+const MOCK_TRANSFORMED = {
+  ...MOCK_ITEM,
+  tenNguoiMua: null,
+  phieuThu: null,
+  dsPhieuThu: [],
+  daThu: 0,
+  dsHangHoa: [],
+  soLuong: {},
+};
+
 describe('HoaDonTapHoaService', () => {
   let service: HoaDonTapHoaService;
 
@@ -42,7 +57,8 @@ describe('HoaDonTapHoaService', () => {
     }).compile();
 
     service = module.get<HoaDonTapHoaService>(HoaDonTapHoaService);
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+    mockPrisma.$transaction.mockImplementation((cb: any) => cb(mockPrisma));
   });
 
   // ── Smoke ──────────────────────────────────────────────────────────
@@ -53,9 +69,9 @@ describe('HoaDonTapHoaService', () => {
   // ── findAll ────────────────────────────────────────────────────────
   describe('findAll()', () => {
     it('trả về mảng khi có dữ liệu', async () => {
-      mockPrisma.hoaDonTapHoa.findMany.mockResolvedValue([MOCK_ITEM]);
+      mockPrisma.hoaDonTapHoa.findMany.mockResolvedValue([MOCK_RAW_FULL]);
       const result = await service.findAll();
-      expect(result).toEqual([MOCK_ITEM]);
+      expect(result).toEqual([MOCK_TRANSFORMED]);
       expect(mockPrisma.hoaDonTapHoa.findMany).toHaveBeenCalledTimes(1);
     });
 
@@ -68,9 +84,9 @@ describe('HoaDonTapHoaService', () => {
   // ── findOne ────────────────────────────────────────────────────────
   describe('findOne()', () => {
     it('trả về record khi tìm thấy', async () => {
-      mockPrisma.hoaDonTapHoa.findFirst.mockResolvedValue(MOCK_ITEM);
+      mockPrisma.hoaDonTapHoa.findFirst.mockResolvedValue(MOCK_RAW_FULL);
       const result = await service.findOne(VALID_ID as any);
-      expect(result).toEqual(MOCK_ITEM);
+      expect(result).toEqual(MOCK_TRANSFORMED);
       expect(mockPrisma.hoaDonTapHoa.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({ where: { maHoaDon: VALID_ID, isDelete: false } }),
       );
@@ -92,8 +108,9 @@ describe('HoaDonTapHoaService', () => {
   describe('create()', () => {
     it('tạo mới và trả về record', async () => {
       mockPrisma.hoaDonTapHoa.create.mockResolvedValue(MOCK_ITEM);
+      mockPrisma.hoaDonTapHoa.findFirst.mockResolvedValue(CREATE_RAW_FULL);
       const result = await service.create(CREATE_DTO as any);
-      expect(result).toEqual(MOCK_ITEM);
+      expect(result).toEqual(MOCK_TRANSFORMED);
       expect(mockPrisma.hoaDonTapHoa.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ ...CREATE_DTO, maHoaDon: expect.any(String) }),
       });
@@ -101,6 +118,7 @@ describe('HoaDonTapHoaService', () => {
 
     it('gọi prisma.create đúng 1 lần', async () => {
       mockPrisma.hoaDonTapHoa.create.mockResolvedValue(MOCK_ITEM);
+      mockPrisma.hoaDonTapHoa.findFirst.mockResolvedValue(CREATE_RAW_FULL);
       await service.create(CREATE_DTO as any);
       expect(mockPrisma.hoaDonTapHoa.create).toHaveBeenCalledTimes(1);
     });
@@ -206,45 +224,68 @@ describe('HoaDonTapHoaService', () => {
 
   // ── statistics ─────────────────────────────────────────────────────
   describe('statistics()', () => {
-    it('tổng hợp doanh thu/số hóa đơn và nhóm theo tháng', async () => {
-      mockPrisma.hoaDonTapHoa.aggregate.mockResolvedValue({
-        _sum: { tongTien: 150000 },
-        _count: { maHoaDon: 2 },
-      });
+    it('tổng hợp doanh thu/còn nợ theo năm và nhóm đủ 12 tháng', async () => {
       mockPrisma.hoaDonTapHoa.findMany.mockResolvedValue([
-        { ngayBan: new Date('2024-01-15'), tongTien: 50000 },
-        { ngayBan: new Date('2024-01-20'), tongTien: 100000 },
+        {
+          ngayBan: new Date('2024-01-15'),
+          tongTien: 50000,
+          phieuThuHdTh: [{ soTien: 20000 }],
+        },
+        {
+          ngayBan: new Date('2024-01-20'),
+          tongTien: 100000,
+          phieuThuHdTh: [],
+        },
       ]);
 
-      const result = await service.statistics({} as any);
+      const result = await service.statistics({ year: 2024 } as any);
 
-      expect(result).toEqual({
+      expect(result.year).toBe(2024);
+      expect(result.totalInvoices).toBe(2);
+      expect(result.totalRevenue).toBe(150000);
+      expect(result.totalDebt).toBe(130000);
+      expect(result.byMonth).toHaveLength(12);
+      expect(result.byMonth[0]).toEqual({
+        month: '2024-01',
         totalInvoices: 2,
         totalRevenue: 150000,
-        byMonth: [{ month: '2024-01', totalInvoices: 2, totalRevenue: 150000 }],
+        totalDebt: 130000,
+      });
+      expect(result.byMonth[1]).toEqual({
+        month: '2024-02',
+        totalInvoices: 0,
+        totalRevenue: 0,
+        totalDebt: 0,
       });
     });
 
-    it('lọc theo khoảng ngày from/to', async () => {
-      mockPrisma.hoaDonTapHoa.aggregate.mockResolvedValue({ _sum: { tongTien: 0 }, _count: { maHoaDon: 0 } });
+    it('lọc theo năm truyền vào', async () => {
       mockPrisma.hoaDonTapHoa.findMany.mockResolvedValue([]);
 
-      await service.statistics({ from: '2024-01-01', to: '2024-01-31' } as any);
+      await service.statistics({ year: 2024 } as any);
 
-      expect(mockPrisma.hoaDonTapHoa.aggregate).toHaveBeenCalledWith(
+      expect(mockPrisma.hoaDonTapHoa.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { isDelete: false, ngayBan: { gte: new Date('2024-01-01'), lte: new Date('2024-01-31') } },
+          where: {
+            isDelete: false,
+            ngayBan: { gte: new Date(Date.UTC(2024, 0, 1)), lte: new Date(Date.UTC(2024, 11, 31, 23, 59, 59, 999)) },
+          },
         }),
       );
     });
 
-    it('trả về 0 và byMonth rỗng khi không có dữ liệu', async () => {
-      mockPrisma.hoaDonTapHoa.aggregate.mockResolvedValue({ _sum: { tongTien: null }, _count: { maHoaDon: 0 } });
+    it('trả về 0 và byMonth đủ 12 tháng bằng 0 khi không có dữ liệu', async () => {
       mockPrisma.hoaDonTapHoa.findMany.mockResolvedValue([]);
 
-      const result = await service.statistics({} as any);
+      const result = await service.statistics({ year: 2024 } as any);
 
-      expect(result).toEqual({ totalInvoices: 0, totalRevenue: 0, byMonth: [] });
+      expect(result.totalInvoices).toBe(0);
+      expect(result.totalRevenue).toBe(0);
+      expect(result.totalDebt).toBe(0);
+      expect(result.byMonth).toHaveLength(12);
+      expect(result.byMonth.every((m) => m.totalInvoices === 0 && m.totalRevenue === 0 && m.totalDebt === 0)).toBe(
+        true,
+      );
     });
   });
 

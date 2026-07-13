@@ -33,7 +33,7 @@ export class HoaDonGuiXeController {
   }
 
   @Get('statistics')
-  @ApiOperation({ summary: 'Thống kê Hóa Đơn Gửi Xe (tổng doanh thu, số hóa đơn theo tháng)' })
+  @ApiOperation({ summary: 'Thống kê Hóa Đơn Gửi Xe theo năm (12 tháng + tổng hợp theo trạng thái)' })
   statistics(@Query() dto: StatisticsHoaDonGuiXeDto) {
     return this.hoaDonGuiXeService.statistics(dto);
   }

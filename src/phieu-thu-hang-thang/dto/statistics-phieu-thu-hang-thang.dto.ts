@@ -1,14 +1,13 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsOptional } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsInt, IsOptional, Max, Min } from 'class-validator';
 
 export class StatisticsPhieuThuHangThangDto {
-  @ApiPropertyOptional({ description: 'Từ ngày (YYYY-MM-DD)' })
+  @ApiPropertyOptional({ description: 'Năm cần thống kê (mặc định năm hiện tại)', example: 2026 })
   @IsOptional()
-  @IsDateString()
-  from?: string;
-
-  @ApiPropertyOptional({ description: 'Đến ngày (YYYY-MM-DD)' })
-  @IsOptional()
-  @IsDateString()
-  to?: string;
+  @Type(() => Number)
+  @IsInt()
+  @Min(2000)
+  @Max(2100)
+  year?: number;
 }

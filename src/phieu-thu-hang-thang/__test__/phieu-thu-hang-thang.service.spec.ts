@@ -198,45 +198,46 @@ describe('PhieuThuHangThangService', () => {
 
   // ── statistics ─────────────────────────────────────────────────────
   describe('statistics()', () => {
-    it('tổng hợp tiền đã thu/số phiếu và nhóm theo tháng', async () => {
-      mockPrisma.phieuThuHangThang.aggregate.mockResolvedValue({
-        _sum: { soTien: 5000000 },
-        _count: { maPhieuThu: 2 },
-      });
+    it('tổng hợp tiền đã thu/số phiếu theo năm và nhóm đủ 12 tháng', async () => {
       mockPrisma.phieuThuHangThang.findMany.mockResolvedValue([
         { ngayThu: new Date('2024-01-05'), soTien: 2500000 },
         { ngayThu: new Date('2024-01-20'), soTien: 2500000 },
       ]);
 
-      const result = await service.statistics({} as any);
+      const result = await service.statistics({ year: 2024 } as any);
 
-      expect(result).toEqual({
-        totalReceipts: 2,
-        totalCollected: 5000000,
-        byMonth: [{ month: '2024-01', totalReceipts: 2, totalCollected: 5000000 }],
-      });
+      expect(result.year).toBe(2024);
+      expect(result.totalReceipts).toBe(2);
+      expect(result.totalCollected).toBe(5000000);
+      expect(result.byMonth).toHaveLength(12);
+      expect(result.byMonth[0]).toEqual({ month: '2024-01', totalReceipts: 2, totalCollected: 5000000 });
+      expect(result.byMonth[1]).toEqual({ month: '2024-02', totalReceipts: 0, totalCollected: 0 });
     });
 
-    it('lọc theo khoảng ngày from/to', async () => {
-      mockPrisma.phieuThuHangThang.aggregate.mockResolvedValue({ _sum: { soTien: 0 }, _count: { maPhieuThu: 0 } });
+    it('lọc theo năm truyền vào', async () => {
       mockPrisma.phieuThuHangThang.findMany.mockResolvedValue([]);
 
-      await service.statistics({ from: '2024-01-01', to: '2024-01-31' } as any);
+      await service.statistics({ year: 2024 } as any);
 
-      expect(mockPrisma.phieuThuHangThang.aggregate).toHaveBeenCalledWith(
+      expect(mockPrisma.phieuThuHangThang.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { isDelete: false, ngayThu: { gte: new Date('2024-01-01'), lte: new Date('2024-01-31') } },
+          where: {
+            isDelete: false,
+            ngayThu: { gte: new Date(Date.UTC(2024, 0, 1)), lte: new Date(Date.UTC(2024, 11, 31, 23, 59, 59, 999)) },
+          },
         }),
       );
     });
 
-    it('trả về 0 và byMonth rỗng khi không có dữ liệu', async () => {
-      mockPrisma.phieuThuHangThang.aggregate.mockResolvedValue({ _sum: { soTien: null }, _count: { maPhieuThu: 0 } });
+    it('trả về 0 và byMonth đủ 12 tháng bằng 0 khi không có dữ liệu', async () => {
       mockPrisma.phieuThuHangThang.findMany.mockResolvedValue([]);
 
-      const result = await service.statistics({} as any);
+      const result = await service.statistics({ year: 2024 } as any);
 
-      expect(result).toEqual({ totalReceipts: 0, totalCollected: 0, byMonth: [] });
+      expect(result.totalReceipts).toBe(0);
+      expect(result.totalCollected).toBe(0);
+      expect(result.byMonth).toHaveLength(12);
+      expect(result.byMonth.every((m) => m.totalReceipts === 0 && m.totalCollected === 0)).toBe(true);
     });
   });
 

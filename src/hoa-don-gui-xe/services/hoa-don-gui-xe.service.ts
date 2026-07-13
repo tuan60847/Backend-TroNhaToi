@@ -69,35 +69,53 @@ export class HoaDonGuiXeService {
     return { total, data: rows.map((r) => this.transform(r)) };
   }
 
+  // Thống kê theo năm: 12 tháng (thangNam dạng chuỗi "MM/YYYY") + tổng hợp
+  // theo TrangThai (không giả định ý nghĩa cụ thể của từng giá trị trạng thái,
+  // vì hóa đơn gửi xe không có bảng phiếu thu riêng để tính "còn nợ" như tạp hóa).
   async statistics(req: StatisticsHoaDonGuiXeDto) {
-    const { thangNam } = req;
-    const where: any = { isDelete: false };
-    if (thangNam) where.thangNam = thangNam;
+    const year = req.year ?? new Date().getFullYear();
+    const thangNamList = Array.from({ length: 12 }, (_, i) => `${String(i + 1).padStart(2, '0')}/${year}`);
 
-    const [aggregate, byMonth] = await Promise.all([
-      this.prisma.hoaDonGuiXe.aggregate({
-        where,
-        _sum: { soTien: true },
-        _count: { maHoaDon: true },
-      }),
-      this.prisma.hoaDonGuiXe.groupBy({
-        by: ['thangNam'],
-        where,
-        _sum: { soTien: true },
-        _count: { maHoaDon: true },
-      }),
-    ]);
+    const items = await this.prisma.hoaDonGuiXe.findMany({
+      where: { isDelete: false, thangNam: { in: thangNamList } },
+      select: { thangNam: true, soTien: true, TrangThai: true },
+    });
+
+    const byMonth = thangNamList.map((thangNam) => ({
+      thangNam,
+      totalInvoices: 0,
+      totalRevenue: 0,
+    }));
+
+    const byTrangThaiMap = new Map<number, { totalInvoices: number; totalRevenue: number }>();
+    let totalRevenue = 0;
+
+    for (const item of items) {
+      const soTien = Number(item.soTien ?? 0);
+      const monthIndex = thangNamList.indexOf(item.thangNam ?? '');
+      if (monthIndex !== -1) {
+        const cur = byMonth[monthIndex];
+        cur.totalInvoices += 1;
+        cur.totalRevenue += soTien;
+      }
+
+      const trangThai = item.TrangThai ?? 0;
+      const tCur = byTrangThaiMap.get(trangThai) ?? { totalInvoices: 0, totalRevenue: 0 };
+      tCur.totalInvoices += 1;
+      tCur.totalRevenue += soTien;
+      byTrangThaiMap.set(trangThai, tCur);
+
+      totalRevenue += soTien;
+    }
 
     return {
-      totalInvoices: aggregate._count.maHoaDon,
-      totalRevenue: Number(aggregate._sum.soTien ?? 0),
-      byMonth: byMonth
-        .map((b) => ({
-          thangNam: b.thangNam,
-          totalInvoices: b._count.maHoaDon,
-          totalRevenue: Number(b._sum.soTien ?? 0),
-        }))
-        .sort((a, b) => (a.thangNam ?? '').localeCompare(b.thangNam ?? '')),
+      year,
+      totalInvoices: items.length,
+      totalRevenue,
+      byMonth,
+      byTrangThai: Array.from(byTrangThaiMap.entries())
+        .sort(([a], [b]) => a - b)
+        .map(([trangThai, v]) => ({ trangThai, ...v })),
     };
   }
 

@@ -22,6 +22,8 @@ const INVALID_ID = 'HDP9999999999999999Z9';
 const CREATE_DTO = {"thangNam": "01/2024", "soTien": 2500000, "hopDongId": "HD0000001A1"};
 const UPDATE_DTO = {"soTien": 3000000};
 const MOCK_ITEM  = { maHoaDon: VALID_ID, ...CREATE_DTO };
+// shape mà transform() trả về cho FE (đổi hopDongId -> HopDongID)
+const MOCK_TRANSFORMED = { maHoaDon: VALID_ID, thangNam: CREATE_DTO.thangNam, soTien: CREATE_DTO.soTien, HopDongID: CREATE_DTO.hopDongId };
 
 describe('HoaDonPhongService', () => {
   let service: HoaDonPhongService;
@@ -35,7 +37,7 @@ describe('HoaDonPhongService', () => {
     }).compile();
 
     service = module.get<HoaDonPhongService>(HoaDonPhongService);
-    jest.clearAllMocks();
+    jest.resetAllMocks();
   });
 
   // ── Smoke ──────────────────────────────────────────────────────────
@@ -48,7 +50,7 @@ describe('HoaDonPhongService', () => {
     it('trả về mảng khi có dữ liệu', async () => {
       mockPrisma.hoaDonPhong.findMany.mockResolvedValue([MOCK_ITEM]);
       const result = await service.findAll();
-      expect(result).toEqual([MOCK_ITEM]);
+      expect(result).toEqual([MOCK_TRANSFORMED]);
       expect(mockPrisma.hoaDonPhong.findMany).toHaveBeenCalledTimes(1);
     });
 
@@ -63,7 +65,7 @@ describe('HoaDonPhongService', () => {
     it('trả về record khi tìm thấy', async () => {
       mockPrisma.hoaDonPhong.findFirst.mockResolvedValue(MOCK_ITEM);
       const result = await service.findOne(VALID_ID as any);
-      expect(result).toEqual(MOCK_ITEM);
+      expect(result).toEqual(MOCK_TRANSFORMED);
       expect(mockPrisma.hoaDonPhong.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({ where: { maHoaDon: VALID_ID, isDelete: false } }),
       );
@@ -163,7 +165,7 @@ describe('HoaDonPhongService', () => {
 
       const result = await service.search({ ma: 'HDP00000001A' } as any);
 
-      expect(result).toEqual({ total: 1, data: [MOCK_ITEM] });
+      expect(result).toEqual({ total: 1, data: [MOCK_TRANSFORMED] });
       expect(mockPrisma.hoaDonPhong.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { isDelete: false, maHoaDon: { contains: 'HDP00000001A' } },
@@ -199,45 +201,65 @@ describe('HoaDonPhongService', () => {
 
   // ── statistics ─────────────────────────────────────────────────────
   describe('statistics()', () => {
-    it('tổng hợp doanh thu/số hóa đơn và nhóm theo thangNam', async () => {
-      mockPrisma.hoaDonPhong.aggregate.mockResolvedValue({
-        _sum: { soTien: 5000000 },
-        _count: { maHoaDon: 2 },
-      });
-      mockPrisma.hoaDonPhong.groupBy.mockResolvedValue([
-        { thangNam: '01/2024', _sum: { soTien: 5000000 }, _count: { maHoaDon: 2 } },
+    it('tổng hợp doanh thu/còn nợ theo năm và nhóm đủ 12 tháng', async () => {
+      mockPrisma.hoaDonPhong.findMany.mockResolvedValue([
+        { thangNam: '01/2024', soTien: 3000000, phieuThuHangThang: [{ soTien: 1000000 }] },
+        { thangNam: '01/2024', soTien: 2000000, phieuThuHangThang: [] },
       ]);
 
-      const result = await service.statistics({} as any);
+      const result = await service.statistics({ year: 2024 } as any);
 
-      expect(result).toEqual({
+      expect(result.year).toBe(2024);
+      expect(result.totalInvoices).toBe(2);
+      expect(result.totalRevenue).toBe(5000000);
+      expect(result.totalDebt).toBe(4000000);
+      expect(result.byMonth).toHaveLength(12);
+      expect(result.byMonth[0]).toEqual({
+        thangNam: '01/2024',
         totalInvoices: 2,
         totalRevenue: 5000000,
-        byMonth: [{ thangNam: '01/2024', totalInvoices: 2, totalRevenue: 5000000 }],
+        totalDebt: 4000000,
+      });
+      expect(result.byMonth[1]).toEqual({
+        thangNam: '02/2024',
+        totalInvoices: 0,
+        totalRevenue: 0,
+        totalDebt: 0,
       });
     });
 
-    it('lọc theo thangNam khi truyền vào', async () => {
-      mockPrisma.hoaDonPhong.aggregate.mockResolvedValue({ _sum: { soTien: 0 }, _count: { maHoaDon: 0 } });
-      mockPrisma.hoaDonPhong.groupBy.mockResolvedValue([]);
+    it('lọc theo năm truyền vào (danh sách 12 chuỗi thangNam)', async () => {
+      mockPrisma.hoaDonPhong.findMany.mockResolvedValue([]);
 
-      await service.statistics({ thangNam: '01/2024' } as any);
+      await service.statistics({ year: 2024 } as any);
 
-      expect(mockPrisma.hoaDonPhong.aggregate).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { isDelete: false, thangNam: '01/2024' } }),
-      );
-      expect(mockPrisma.hoaDonPhong.groupBy).toHaveBeenCalledWith(
-        expect.objectContaining({ by: ['thangNam'], where: { isDelete: false, thangNam: '01/2024' } }),
+      expect(mockPrisma.hoaDonPhong.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            isDelete: false,
+            thangNam: {
+              in: [
+                '01/2024', '02/2024', '03/2024', '04/2024', '05/2024', '06/2024',
+                '07/2024', '08/2024', '09/2024', '10/2024', '11/2024', '12/2024',
+              ],
+            },
+          },
+        }),
       );
     });
 
-    it('trả về 0 và byMonth rỗng khi không có dữ liệu', async () => {
-      mockPrisma.hoaDonPhong.aggregate.mockResolvedValue({ _sum: { soTien: null }, _count: { maHoaDon: 0 } });
-      mockPrisma.hoaDonPhong.groupBy.mockResolvedValue([]);
+    it('trả về 0 và byMonth đủ 12 tháng bằng 0 khi không có dữ liệu', async () => {
+      mockPrisma.hoaDonPhong.findMany.mockResolvedValue([]);
 
-      const result = await service.statistics({} as any);
+      const result = await service.statistics({ year: 2024 } as any);
 
-      expect(result).toEqual({ totalInvoices: 0, totalRevenue: 0, byMonth: [] });
+      expect(result.totalInvoices).toBe(0);
+      expect(result.totalRevenue).toBe(0);
+      expect(result.totalDebt).toBe(0);
+      expect(result.byMonth).toHaveLength(12);
+      expect(result.byMonth.every((m) => m.totalInvoices === 0 && m.totalRevenue === 0 && m.totalDebt === 0)).toBe(
+        true,
+      );
     });
   });
 
@@ -246,7 +268,7 @@ describe('HoaDonPhongService', () => {
     it('lấy 15 phần tử đầu khi không truyền id', async () => {
       mockPrisma.hoaDonPhong.findMany.mockResolvedValue([MOCK_ITEM]);
       const result = await service.getAllLoadingBalance();
-      expect(result).toEqual([MOCK_ITEM]);
+      expect(result).toEqual([MOCK_TRANSFORMED]);
       expect(mockPrisma.hoaDonPhong.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { isDelete: false },
@@ -259,7 +281,7 @@ describe('HoaDonPhongService', () => {
     it('lấy 15 phần tử tiếp theo kể từ id truyền vào (cursor)', async () => {
       mockPrisma.hoaDonPhong.findMany.mockResolvedValue([MOCK_ITEM]);
       const result = await service.getAllLoadingBalance(VALID_ID as any);
-      expect(result).toEqual([MOCK_ITEM]);
+      expect(result).toEqual([MOCK_TRANSFORMED]);
       expect(mockPrisma.hoaDonPhong.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { isDelete: false },

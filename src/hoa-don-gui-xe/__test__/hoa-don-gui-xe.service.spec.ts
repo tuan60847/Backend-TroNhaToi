@@ -188,42 +188,56 @@ describe('HoaDonGuiXeService', () => {
 
   // ── statistics ─────────────────────────────────────────────────────
   describe('statistics()', () => {
-    it('tổng hợp doanh thu/số hóa đơn và nhóm theo thangNam', async () => {
-      mockPrisma.hoaDonGuiXe.aggregate.mockResolvedValue({
-        _sum: { soTien: 200000 },
-        _count: { maHoaDon: 2 },
-      });
-      mockPrisma.hoaDonGuiXe.groupBy.mockResolvedValue([
-        { thangNam: '01/2024', _sum: { soTien: 200000 }, _count: { maHoaDon: 2 } },
+    it('tổng hợp doanh thu theo năm, nhóm đủ 12 tháng và theo TrangThai', async () => {
+      mockPrisma.hoaDonGuiXe.findMany.mockResolvedValue([
+        { thangNam: '01/2024', soTien: 100000, TrangThai: 0 },
+        { thangNam: '01/2024', soTien: 100000, TrangThai: 1 },
       ]);
 
-      const result = await service.statistics({} as any);
+      const result = await service.statistics({ year: 2024 } as any);
 
-      expect(result).toEqual({
-        totalInvoices: 2,
-        totalRevenue: 200000,
-        byMonth: [{ thangNam: '01/2024', totalInvoices: 2, totalRevenue: 200000 }],
-      });
+      expect(result.year).toBe(2024);
+      expect(result.totalInvoices).toBe(2);
+      expect(result.totalRevenue).toBe(200000);
+      expect(result.byMonth).toHaveLength(12);
+      expect(result.byMonth[0]).toEqual({ thangNam: '01/2024', totalInvoices: 2, totalRevenue: 200000 });
+      expect(result.byMonth[1]).toEqual({ thangNam: '02/2024', totalInvoices: 0, totalRevenue: 0 });
+      expect(result.byTrangThai).toEqual([
+        { trangThai: 0, totalInvoices: 1, totalRevenue: 100000 },
+        { trangThai: 1, totalInvoices: 1, totalRevenue: 100000 },
+      ]);
     });
 
-    it('lọc theo thangNam khi truyền vào', async () => {
-      mockPrisma.hoaDonGuiXe.aggregate.mockResolvedValue({ _sum: { soTien: 0 }, _count: { maHoaDon: 0 } });
-      mockPrisma.hoaDonGuiXe.groupBy.mockResolvedValue([]);
+    it('lọc theo năm truyền vào (danh sách 12 chuỗi thangNam)', async () => {
+      mockPrisma.hoaDonGuiXe.findMany.mockResolvedValue([]);
 
-      await service.statistics({ thangNam: '01/2024' } as any);
+      await service.statistics({ year: 2024 } as any);
 
-      expect(mockPrisma.hoaDonGuiXe.aggregate).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { isDelete: false, thangNam: '01/2024' } }),
+      expect(mockPrisma.hoaDonGuiXe.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            isDelete: false,
+            thangNam: {
+              in: [
+                '01/2024', '02/2024', '03/2024', '04/2024', '05/2024', '06/2024',
+                '07/2024', '08/2024', '09/2024', '10/2024', '11/2024', '12/2024',
+              ],
+            },
+          },
+        }),
       );
     });
 
-    it('trả về 0 và byMonth rỗng khi không có dữ liệu', async () => {
-      mockPrisma.hoaDonGuiXe.aggregate.mockResolvedValue({ _sum: { soTien: null }, _count: { maHoaDon: 0 } });
-      mockPrisma.hoaDonGuiXe.groupBy.mockResolvedValue([]);
+    it('trả về 0 và byMonth đủ 12 tháng bằng 0 khi không có dữ liệu', async () => {
+      mockPrisma.hoaDonGuiXe.findMany.mockResolvedValue([]);
 
-      const result = await service.statistics({} as any);
+      const result = await service.statistics({ year: 2024 } as any);
 
-      expect(result).toEqual({ totalInvoices: 0, totalRevenue: 0, byMonth: [] });
+      expect(result.totalInvoices).toBe(0);
+      expect(result.totalRevenue).toBe(0);
+      expect(result.byMonth).toHaveLength(12);
+      expect(result.byMonth.every((m) => m.totalInvoices === 0 && m.totalRevenue === 0)).toBe(true);
+      expect(result.byTrangThai).toEqual([]);
     });
   });
 

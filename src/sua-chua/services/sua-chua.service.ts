@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSuaChuaDto } from '../dto/create-sua-chua.dto';
 import { UpdateSuaChuaDto } from '../dto/update-sua-chua.dto';
 import { SearchSuaChuaDto } from '../dto/search-sua-chua.dto';
+import { ThongKeThietBiSuaChuaDto } from '../dto/thong-ke-thiet-bi-sua-chua.dto';
 
 @Injectable()
 export class SuaChuaService {
@@ -98,6 +99,45 @@ export class SuaChuaService {
         ? { skip: 1, cursor: { id: id } }
         : {}),
     });
+  }
+
+  // Thống kê thiết bị có nhiều lịch sử sửa chữa nhất trong 1 tháng: đếm số lần
+  // sửa chữa (bảng suaChua) theo từng thiết bị trong khoảng tháng/năm truyền vào,
+  // sắp xếp giảm dần theo số lần sửa (phần tử đầu tiên là thiết bị nhiều nhất).
+  async thietBiSuaChuaNhieuNhat(dto: ThongKeThietBiSuaChuaDto) {
+    const { thang, nam } = dto;
+    const from = new Date(Date.UTC(nam, thang - 1, 1));
+    const to = new Date(Date.UTC(nam, thang, 0, 23, 59, 59, 999));
+
+    const grouped = await this.prisma.suaChua.groupBy({
+      by: ['thietBiId'],
+      where: {
+        isDelete: false,
+        thietBiId: { not: null },
+        ngaySuaChua: { gte: from, lte: to },
+      },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+    });
+
+    const thietBiIds = grouped.map((g) => g.thietBiId!).filter((id) => id != null);
+    const thietBiList = thietBiIds.length
+      ? await this.prisma.thietBi.findMany({ where: { thietBiId: { in: thietBiIds } } })
+      : [];
+    const thietBiMap = new Map(thietBiList.map((tb) => [tb.thietBiId, tb]));
+
+    const data = grouped.map((g) => ({
+      thietBiId: g.thietBiId,
+      thietBi: thietBiMap.get(g.thietBiId!) ?? null,
+      soLanSuaChua: g._count.id,
+    }));
+
+    return {
+      thang,
+      nam,
+      thietBiNhieuNhat: data[0] ?? null,
+      data,
+    };
   }
 
 }

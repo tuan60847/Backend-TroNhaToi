@@ -20,6 +20,8 @@ const INVALID_ID = 9999;
 const CREATE_DTO = {"phongId": 1, "thietBiId": 1, "ngayLap": "2023-06-15", "soLuong": 1};
 const UPDATE_DTO = {"soLuong": 2};
 const MOCK_ITEM  = { id: 1, ...CREATE_DTO };
+// shape mà transform() trả về cho FE (đổi phongId/thietBiId -> PhongID/thietBiID)
+const MOCK_TRANSFORMED = { id: 1, ngayLap: CREATE_DTO.ngayLap, soLuong: CREATE_DTO.soLuong, PhongID: CREATE_DTO.phongId, thietBiID: CREATE_DTO.thietBiId };
 
 describe('LapRapService', () => {
   let service: LapRapService;
@@ -33,7 +35,7 @@ describe('LapRapService', () => {
     }).compile();
 
     service = module.get<LapRapService>(LapRapService);
-    jest.clearAllMocks();
+    jest.resetAllMocks();
   });
 
   // ── Smoke ──────────────────────────────────────────────────────────
@@ -46,7 +48,7 @@ describe('LapRapService', () => {
     it('trả về mảng khi có dữ liệu', async () => {
       mockPrisma.lapRap.findMany.mockResolvedValue([MOCK_ITEM]);
       const result = await service.findAll();
-      expect(result).toEqual([MOCK_ITEM]);
+      expect(result).toEqual([MOCK_TRANSFORMED]);
       expect(mockPrisma.lapRap.findMany).toHaveBeenCalledTimes(1);
     });
 
@@ -61,7 +63,7 @@ describe('LapRapService', () => {
     it('trả về record khi tìm thấy', async () => {
       mockPrisma.lapRap.findFirst.mockResolvedValue(MOCK_ITEM);
       const result = await service.findOne(VALID_ID as any);
-      expect(result).toEqual(MOCK_ITEM);
+      expect(result).toEqual(MOCK_TRANSFORMED);
       expect(mockPrisma.lapRap.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: VALID_ID, isDelete: false } }),
       );
@@ -161,7 +163,7 @@ describe('LapRapService', () => {
 
       const result = await service.search({ phongId: 1, thietBiId: 1 } as any);
 
-      expect(result).toEqual({ total: 1, data: [MOCK_ITEM] });
+      expect(result).toEqual({ total: 1, data: [MOCK_TRANSFORMED] });
       expect(mockPrisma.lapRap.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { isDelete: false, phongId: 1, thietBiId: 1 },
@@ -189,7 +191,7 @@ describe('LapRapService', () => {
     it('lấy 15 phần tử đầu khi không truyền id', async () => {
       mockPrisma.lapRap.findMany.mockResolvedValue([MOCK_ITEM]);
       const result = await service.getAllLoadingBalance();
-      expect(result).toEqual([MOCK_ITEM]);
+      expect(result).toEqual([MOCK_TRANSFORMED]);
       expect(mockPrisma.lapRap.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { isDelete: false },
@@ -202,7 +204,7 @@ describe('LapRapService', () => {
     it('lấy 15 phần tử tiếp theo kể từ id truyền vào (cursor)', async () => {
       mockPrisma.lapRap.findMany.mockResolvedValue([MOCK_ITEM]);
       const result = await service.getAllLoadingBalance(VALID_ID as any);
-      expect(result).toEqual([MOCK_ITEM]);
+      expect(result).toEqual([MOCK_TRANSFORMED]);
       expect(mockPrisma.lapRap.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { isDelete: false },
