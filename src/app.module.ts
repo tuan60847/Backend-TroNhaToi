@@ -23,6 +23,7 @@ import { SuaChuaModule } from './sua-chua/sua-chua.module';
 import { HoaDonSuaChuaModule } from './hoa-don-sua-chua/hoa-don-sua-chua.module';
 import { NguoiLuuTruTamThoiModule } from './nguoi-luu-tru-tam-thoi/nguoi-luu-tru-tam-thoi.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { ThongKeModule } from './thong-ke/thong-ke.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     HoaDonSuaChuaModule,
     NguoiLuuTruTamThoiModule,
     CloudinaryModule,
+    ThongKeModule,
   ],
 })
 export class AppModule {}
