@@ -27,7 +27,7 @@ model LoaiPhong {
 model Phong {
   phongId            Int                  @id @default(autoincrement()) @map("PhongID")
   tenPhong           String?              @db.VarChar(255)
-  trangThai          String?              @db.VarChar(100)
+  trangThai          Int?                 @default(0)
   moTa               String?              @db.Text
   maLoaiPhong        Int?
   isDelete           Boolean              @default(false)
@@ -51,6 +51,7 @@ model NguoiThue {
   queQuan            String?              @db.VarChar(255)
   ghiChu             String?              @db.Text
   gioiTinh           Boolean              @default(true)
+  trangThai          Int                  @default(0)     /// 0 = Chưa thuê (mới tạo), 1 = Đang thuê hoạt động, 2 = Đã dọn đi
   isDelete           Boolean              @default(false)
   hoaDonTapHoa       HoaDonTapHoa[]
   HopDong            HopDong[]
@@ -61,7 +62,7 @@ model NguoiThue {
 }
 
 model HopDong {
-  hopDongId      String        @id @map("HopDongID") @db.Char(11)
+  hopDongId      String        @id @map("HopDongID") @db.VarChar(30)
   idnt           Int           @map("IDNT")
   phongId        Int?          @map("PhongID")
   ngayKy         DateTime?     @db.Date
@@ -69,6 +70,8 @@ model HopDong {
   tienCoc        Decimal?      @db.Decimal(10, 2)
   giaPhongThucTe Decimal?      @db.Decimal(10, 2)
   trangThai      Int?          @default(0)
+  ghiChu         String?       @db.Text
+  anhHopDong     String?       @db.Text
   isDelete       Boolean       @default(false)
   hoadonphong    HoaDonPhong[]
   nguoithue      NguoiThue     @relation(fields: [idnt], references: [idnt], onUpdate: Restrict, map: "HopDong_Fk1")
@@ -97,7 +100,7 @@ model HoaDonPhong {
   maHoaDon          String              @id @db.Char(23)
   thangNam          String?             @db.VarChar(20)
   soTien            Decimal?            @db.Decimal(10, 2)
-  hopDongId         String?             @map("HopDongID") @db.Char(11)
+  hopDongId         String?             @map("HopDongID") @db.VarChar(30)
   isDelete          Boolean             @default(false)
   hopdong           HopDong?            @relation(fields: [hopDongId], references: [hopDongId], onDelete: Restrict, onUpdate: Restrict, map: "HoaDonPhong_HopDong")
   phieuThuHangThang PhieuThuHangThang[]
@@ -120,7 +123,7 @@ model PhieuThuHangThang {
 }
 
 model PhuongTien {
-  ID          Int           @id
+  ID          Int           @id @default(autoincrement())
   bienSo      String        @db.VarChar(50)
   hangXe      String?       @db.VarChar(100)
   mauSac      String?       @db.VarChar(100)
@@ -154,13 +157,13 @@ model HangHoa {
   giaNhap       Decimal?        @db.Decimal(10, 2)
   giaBan        Decimal?        @db.Decimal(10, 2)
   isDelete      Boolean         @default(false)
+  donViTinh     String?         @db.VarChar(255)
   chiTietTapHoa ChiTietTapHoa[]
-
   @@map("hanghoa")
 }
 
 model HoaDonTapHoa {
-  maHoaDon      String          @id @db.Char(11)
+  maHoaDon      String          @id @db.Char(13)
   idnt          Int?            @map("IDNT")
   ngayBan       DateTime?       @db.Date
   tongTien      Decimal?        @db.Decimal(10, 2)
@@ -175,7 +178,7 @@ model HoaDonTapHoa {
 
 model ChiTietTapHoa {
   maChiTietHoaDon Int           @id @default(autoincrement())
-  maHoaDon        String?       @db.Char(11)
+  maHoaDon        String?       @db.Char(13)
   maHangHoa       Int?
   soLuong         Int?
   isDelete        Boolean       @default(false)
@@ -188,13 +191,13 @@ model ChiTietTapHoa {
 }
 
 model PhieuThuHdTh {
-  maPhieuThu   Int           @id @default(autoincrement())
-  ngayThu      DateTime?     @db.Date
-  soTien       Decimal?      @db.Decimal(10, 2)
-  nguoiDong    String?       @db.VarChar(255)
-  maHoaDon     String?       @db.Char(11)
-  isDelete     Boolean       @default(false)
-  hoaDonTapHoa HoaDonTapHoa? @relation(fields: [maHoaDon], references: [maHoaDon], onDelete: NoAction, onUpdate: NoAction, map: "phieuthuhdth_ibfk_1")
+  maPhieuThu   Int          @id @default(autoincrement())
+  ngayThu      DateTime?    @db.Date
+  soTien       Decimal?     @db.Decimal(10, 2)
+  nguoiDong    String?      @db.VarChar(255)
+  maHoaDon     String       @db.Char(13)
+  isDelete     Boolean      @default(false)
+  hoaDonTapHoa HoaDonTapHoa @relation(fields: [maHoaDon], references: [maHoaDon], onDelete: NoAction, onUpdate: NoAction, map: "phieuthuhdth_ibfk_1")
 
   @@index([maHoaDon], map: "phieuthuhdth_ibfk_1")
   @@map("phieuthuhdth")
@@ -206,9 +209,10 @@ model ThietBi {
   loai       String?   @db.VarChar(100)
   giaTri     Decimal?  @db.Decimal(10, 2)
   ngayMua    DateTime? @db.Date
-  trangThai  String?   @db.VarChar(100)
+  trangThai  Int?      @default(0)
   isDelete   Boolean   @default(false)
   laprap     LapRap[]
+  suachua    SuaChua[]
 
   @@map("thietbi")
 }
@@ -229,29 +233,31 @@ model LapRap {
 }
 
 model SuaChua {
-  id            Int             @id @default(autoincrement())
-  phongId       Int?            @map("PhongID")
-  nguyenNhan    String?         @db.Text
-  ngaySuaChua   DateTime?       @db.Date
-  isDelete      Boolean         @default(false)
-  hoadonsuachua HoaDonSuaChua[]
-  phong         Phong?          @relation(fields: [phongId], references: [phongId], onDelete: Restrict, onUpdate: Restrict, map: "suaChua_FK")
+  id            Int            @id @default(autoincrement())
+  phongId       Int?           @map("PhongID")
+  thietBiId     Int?           @map("thietBiID")
+  nguyenNhan    String?        @db.Text
+  ngaySuaChua   DateTime?      @db.Date
+  isDelete      Boolean        @default(false)
+  hoadonsuachua HoaDonSuaChua?
+  phong         Phong?         @relation(fields: [phongId], references: [phongId], onDelete: Restrict, onUpdate: Restrict, map: "suaChua_FK")
+  thietbi       ThietBi?       @relation(fields: [thietBiId], references: [thietBiId], onDelete: Restrict, onUpdate: Restrict, map: "suaChua_FK2")
 
   @@index([phongId], map: "PhongID")
+  @@index([thietBiId], map: "thietBiID")
   @@map("suachua")
 }
 
 model HoaDonSuaChua {
-  maHoaDonSc      Int       @id @default(autoincrement()) @map("maHoaDonSC")
+  maHoaDonSc      String    @id @map("maHoaDonSC")
   trangThai       Int       @default(0) @map("TrangThai")
   giaTien         Decimal?  @db.Decimal(10, 2)
-  loaiSua         String?   @db.VarChar(255)
+  loaiSua         Int       @default(0)
   ngayLapHoaDonSc DateTime? @map("ngayLapHoaDonSC") @db.Date
-  idSuaChua       Int?
+  idSuaChua       Int       @unique
   isDelete        Boolean   @default(false)
-  suachua         SuaChua?  @relation(fields: [idSuaChua], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "hoadonsuachua_ibfk_1")
+  suachua         SuaChua   @relation(fields: [idSuaChua], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "hoadonsuachua_ibfk_1")
 
-  @@index([idSuaChua], map: "id")
   @@map("hoadonsuachua")
 }
 
@@ -281,4 +287,17 @@ model User {
   role      String?   @default("admin") @db.VarChar(50)
   createdAt DateTime? @default(now()) @db.DateTime(0)
   updatedAt DateTime? @default(now()) @db.DateTime(0)
+}
+
+model ThongBao {
+  id        Int      @id @default(autoincrement())
+  tieuDe    String   @db.VarChar(255)
+  noiDung   String   @db.Text
+  loai      String   @db.VarChar(50)
+  hopDongId String?  @db.VarChar(30)
+  soNgayCon Int?
+  daDoc     Boolean  @default(false)
+  taoLuc    DateTime @default(now())
+
+  @@map("thongbao")
 }
