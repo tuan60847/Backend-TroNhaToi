@@ -1,8 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsString } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 
 export class CreatePhongDto {
+
+  @ApiPropertyOptional({ description: 'ID Phòng' })
+  @IsOptional()
+  @IsInt()
+  phongId?: number;
+
   @ApiPropertyOptional({ description: 'Tên phòng' })
   @IsOptional()
   @IsString()
@@ -10,8 +16,8 @@ export class CreatePhongDto {
 
   @ApiPropertyOptional({ description: 'Trạng thái (trong/dangThue/suaChua)' })
   @IsOptional()
-  @IsString()
-  trangThai?: string;
+  @IsInt()
+  trangThai?: number;
 
   @ApiPropertyOptional({ description: 'Mô tả' })
   @IsOptional()

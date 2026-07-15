@@ -18,7 +18,7 @@ export class ChiTietTapHoaController {
     return this.chiTietTapHoaService.create(dto);
   }
 
-  @Get()
+  @Get('findAll')
   @ApiOperation({ summary: 'Danh sách Chi Tiết Tạp Hóa' })
   findAll() {
     return this.chiTietTapHoaService.findAll();
@@ -41,5 +41,10 @@ export class ChiTietTapHoaController {
   @ApiOperation({ summary: 'Xóa Chi Tiết Tạp Hóa' })
   remove(@Param('maChiTietHoaDon', ParseIntPipe) id: number) {
     return this.chiTietTapHoaService.remove(id);
+  }
+
+  @Get('hoa-don/:maHoaDon')
+  findByMaHoaDon(@Param('maHoaDon') maHoaDon: string) {
+    return this.chiTietTapHoaService.findByMaHoaDon(maHoaDon);
   }
 }

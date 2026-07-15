@@ -18,7 +18,7 @@ export class LoaiPhongController {
     return this.loaiPhongService.create(dto);
   }
 
-  @Get()
+  @Get('getAllLoaiPhong')
   @ApiOperation({ summary: 'Danh sách Loại Phòng' })
   findAll() {
     return this.loaiPhongService.findAll();

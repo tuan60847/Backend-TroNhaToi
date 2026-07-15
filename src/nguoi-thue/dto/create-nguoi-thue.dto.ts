@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsOptional, IsString } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateNguoiThueDto {
@@ -32,6 +32,11 @@ export class CreateNguoiThueDto {
   @IsOptional()
   @IsString()
   ghiChu?: string;
+
+  @ApiPropertyOptional({ description: 'Giới tính' })
+  @IsOptional()
+  @IsBoolean()
+  gioitinh?: boolean;
 
 }
 

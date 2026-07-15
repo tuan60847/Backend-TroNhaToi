@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsNumber, IsOptional, IsString } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 
 export class CreatePhieuThuHdThDto {
@@ -18,10 +18,9 @@ export class CreatePhieuThuHdThDto {
   @IsString()
   nguoiDong?: string;
 
-  @ApiPropertyOptional({ description: 'Mã hóa đơn tạp hóa' })
-  @IsOptional()
-  @IsInt()
-  maHoaDon?: number;
+  @ApiProperty({ description: 'Mã hóa đơn tạp hóa' })
+  @IsString()
+  maHoaDon: string;
 
 }
 

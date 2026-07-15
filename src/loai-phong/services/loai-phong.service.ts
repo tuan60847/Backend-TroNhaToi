@@ -9,7 +9,7 @@ export class LoaiPhongService {
 
   findAll() {
     return this.prisma.loaiPhong.findMany({
-      include: { phong: { select: { phongId: true, tenPhong: true, trangThai: true } } },
+     where: { isDelete: false },//isdelete là lấy những loại phòng chưa xóa
     });
   }
 

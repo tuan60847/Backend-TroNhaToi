@@ -12,37 +12,36 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 export class NguoiThueController {
   constructor(private readonly nguoiThueService: NguoiThueService) {}
 
-  @Post()
+  @Post('create')
   @ApiOperation({ summary: 'Tạo Người Thuê mới' })
   create(@Body() dto: CreateNguoiThueDto) {
     return this.nguoiThueService.create(dto);
   }
 
-  @Get()
-  @ApiOperation({ summary: 'Danh sách Người Thuê' })
-  findAll() {
-    return this.nguoiThueService.findAll();
-  }
-
   @Get('findall')
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Danh sách tất cả Người Thuê (bao gồm người mới thêm chưa có hợp đồng)' })
   findAllNguoiThue() {
     return this.nguoiThueService.findAllNguoiThue();
   }
 
-  @Get(':idnt')
+  @Get('nguoiThueAvailableForContract')
+  @ApiOperation({ summary: 'Lấy danh sách các Người Thuê (chưa có hợp đồng và đã có hợp đồng) để tạo hợp đồng' })
+  async getNguoiThueAvailableForContract() {
+    return this.nguoiThueService.getNguoiThueAvailableForContract();
+  }
+   
+  @Get(':idnt/listRoomNguoiThue')
   @ApiOperation({ summary: 'Chi tiết Người Thuê' })
   @ApiParam({ name: 'idnt', description: 'ID của Người Thuê' })
-  findOne(@Param('idnt', ParseIntPipe) id: number) {
-    return this.nguoiThueService.findOne(id);
+  findRoom_NguoiThue(@Param('idnt', ParseIntPipe) id: number) {
+    return this.nguoiThueService.findRoom_NguoiThue(id);
   }
 
-  @Patch(':idnt')
-  @ApiOperation({ summary: 'Cập nhật Người Thuê' })
-  update(@Param('idnt', ParseIntPipe) id: number, @Body() dto: UpdateNguoiThueDto) {
-    return this.nguoiThueService.update(id, dto);
-  }
+  // @Patch(':idnt')
+  // @ApiOperation({ summary: 'Cập nhật Người Thuê' })
+  // update(@Param('idnt', ParseIntPipe) id: number, @Body() dto: UpdateNguoiThueDto) {
+  //   return this.nguoiThueService.update(id, dto);
+  // }
 
   @Delete(':idnt')
   @ApiOperation({ summary: 'Xóa Người Thuê' })

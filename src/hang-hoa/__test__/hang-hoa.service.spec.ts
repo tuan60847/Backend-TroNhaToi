@@ -7,10 +7,10 @@ import { NotFoundException } from '@nestjs/common';
 const mockPrisma = {
   hangHoa: {
     findMany:  jest.fn(),
-    findUnique: jest.fn(),
+    findFirst: jest.fn(),
     create:    jest.fn(),
     update:    jest.fn(),
-    delete:    jest.fn(),
+    count:     jest.fn(),
   },
 };
 
@@ -59,21 +59,21 @@ describe('HangHoaService', () => {
   // ── findOne ────────────────────────────────────────────────────────
   describe('findOne()', () => {
     it('trả về record khi tìm thấy', async () => {
-      mockPrisma.hangHoa.findUnique.mockResolvedValue(MOCK_ITEM);
+      mockPrisma.hangHoa.findFirst.mockResolvedValue(MOCK_ITEM);
       const result = await service.findOne(VALID_ID as any);
       expect(result).toEqual(MOCK_ITEM);
-      expect(mockPrisma.hangHoa.findUnique).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { maHangHoa: VALID_ID } }),
+      expect(mockPrisma.hangHoa.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { maHangHoa: VALID_ID, isDelete: false } }),
       );
     });
 
     it('ném NotFoundException khi không tìm thấy', async () => {
-      mockPrisma.hangHoa.findUnique.mockResolvedValue(null);
+      mockPrisma.hangHoa.findFirst.mockResolvedValue(null);
       await expect(service.findOne(INVALID_ID as any)).rejects.toThrow(NotFoundException);
     });
 
     it('ném NotFoundException với message đúng', async () => {
-      mockPrisma.hangHoa.findUnique.mockResolvedValue(null);
+      mockPrisma.hangHoa.findFirst.mockResolvedValue(null);
       await expect(service.findOne(INVALID_ID as any))
         .rejects.toThrow('không tồn tại');
     });
@@ -101,7 +101,7 @@ describe('HangHoaService', () => {
   describe('update()', () => {
     it('cập nhật và trả về record đã sửa', async () => {
       const updated = { ...MOCK_ITEM, ...UPDATE_DTO };
-      mockPrisma.hangHoa.findUnique.mockResolvedValue(MOCK_ITEM);
+      mockPrisma.hangHoa.findFirst.mockResolvedValue(MOCK_ITEM);
       mockPrisma.hangHoa.update.mockResolvedValue(updated);
 
       const result = await service.update(VALID_ID as any, UPDATE_DTO as any);
@@ -112,13 +112,13 @@ describe('HangHoaService', () => {
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {
-      mockPrisma.hangHoa.findUnique.mockResolvedValue(null);
+      mockPrisma.hangHoa.findFirst.mockResolvedValue(null);
       await expect(service.update(INVALID_ID as any, UPDATE_DTO as any))
         .rejects.toThrow(NotFoundException);
     });
 
     it('không gọi prisma.update khi record không tồn tại', async () => {
-      mockPrisma.hangHoa.findUnique.mockResolvedValue(null);
+      mockPrisma.hangHoa.findFirst.mockResolvedValue(null);
       try {
         await service.update(INVALID_ID as any, UPDATE_DTO as any);
       } catch {}
@@ -128,28 +128,112 @@ describe('HangHoaService', () => {
 
   // ── remove ─────────────────────────────────────────────────────────
   describe('remove()', () => {
-    it('xóa và trả về record đã xóa', async () => {
-      mockPrisma.hangHoa.findUnique.mockResolvedValue(MOCK_ITEM);
-      mockPrisma.hangHoa.delete.mockResolvedValue(MOCK_ITEM);
+    it('xóa mềm (set isDelete=true) và trả về record đã cập nhật', async () => {
+      mockPrisma.hangHoa.findFirst.mockResolvedValue(MOCK_ITEM);
+      mockPrisma.hangHoa.update.mockResolvedValue({ ...MOCK_ITEM, isDelete: true });
 
       const result = await service.remove(VALID_ID as any);
-      expect(result).toEqual(MOCK_ITEM);
-      expect(mockPrisma.hangHoa.delete).toHaveBeenCalledWith(
-        { where: { maHangHoa: VALID_ID } },
+      expect(result).toEqual({ ...MOCK_ITEM, isDelete: true });
+      expect(mockPrisma.hangHoa.update).toHaveBeenCalledWith(
+        { where: { maHangHoa: VALID_ID }, data: { isDelete: true } },
       );
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {
-      mockPrisma.hangHoa.findUnique.mockResolvedValue(null);
+      mockPrisma.hangHoa.findFirst.mockResolvedValue(null);
       await expect(service.remove(INVALID_ID as any)).rejects.toThrow(NotFoundException);
     });
 
-    it('không gọi prisma.delete khi record không tồn tại', async () => {
-      mockPrisma.hangHoa.findUnique.mockResolvedValue(null);
+    it('không gọi prisma.update khi record không tồn tại', async () => {
+      mockPrisma.hangHoa.findFirst.mockResolvedValue(null);
       try {
         await service.remove(INVALID_ID as any);
       } catch {}
-      expect(mockPrisma.hangHoa.delete).not.toHaveBeenCalled();
+      expect(mockPrisma.hangHoa.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── search ─────────────────────────────────────────────────────────
+  describe('search()', () => {
+    it('tìm theo từ khóa q (tenHangHoa)', async () => {
+      mockPrisma.hangHoa.findMany.mockResolvedValue([MOCK_ITEM]);
+      mockPrisma.hangHoa.count.mockResolvedValue(1);
+
+      const result = await service.search({ q: 'Hảo Hảo' } as any);
+
+      expect(result).toEqual({ total: 1, data: [MOCK_ITEM] });
+      expect(mockPrisma.hangHoa.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isDelete: false, tenHangHoa: { contains: 'Hảo Hảo' } },
+          orderBy: { maHangHoa: 'desc' },
+          take: 10,
+          skip: 0,
+        }),
+      );
+    });
+
+    it('không truyền q thì chỉ lọc isDelete: false', async () => {
+      mockPrisma.hangHoa.findMany.mockResolvedValue([]);
+      mockPrisma.hangHoa.count.mockResolvedValue(0);
+
+      await service.search({} as any);
+
+      expect(mockPrisma.hangHoa.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { isDelete: false } }),
+      );
+    });
+  });
+
+  // ── searchByName ───────────────────────────────────────────────────
+  describe('searchByName()', () => {
+    it('tìm theo tên (tenHangHoa contains) và trả về mảng', async () => {
+      mockPrisma.hangHoa.findMany.mockResolvedValue([MOCK_ITEM]);
+      const result = await service.searchByName('Hảo Hảo');
+      expect(result).toEqual([MOCK_ITEM]);
+      expect(mockPrisma.hangHoa.findMany).toHaveBeenCalledWith({
+        where: { tenHangHoa: { contains: 'Hảo Hảo' }, isDelete: false },
+      });
+    });
+
+    it('trả về mảng rỗng khi không tìm thấy', async () => {
+      mockPrisma.hangHoa.findMany.mockResolvedValue([]);
+      expect(await service.searchByName('Không tồn tại')).toEqual([]);
+    });
+  });
+
+  // ── getAllLoadingBalance ──────────────────────────────────────────
+  describe('getAllLoadingBalance()', () => {
+    it('lấy 15 phần tử đầu khi không truyền id', async () => {
+      mockPrisma.hangHoa.findMany.mockResolvedValue([MOCK_ITEM]);
+      const result = await service.getAllLoadingBalance();
+      expect(result).toEqual([MOCK_ITEM]);
+      expect(mockPrisma.hangHoa.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isDelete: false },
+          orderBy: { maHangHoa: 'asc' },
+          take: 15,
+        }),
+      );
+    });
+
+    it('lấy 15 phần tử tiếp theo kể từ id truyền vào (cursor)', async () => {
+      mockPrisma.hangHoa.findMany.mockResolvedValue([MOCK_ITEM]);
+      const result = await service.getAllLoadingBalance(VALID_ID as any);
+      expect(result).toEqual([MOCK_ITEM]);
+      expect(mockPrisma.hangHoa.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isDelete: false },
+          orderBy: { maHangHoa: 'asc' },
+          take: 15,
+          skip: 1,
+          cursor: { maHangHoa: VALID_ID },
+        }),
+      );
+    });
+
+    it('trả về mảng rỗng khi không còn dữ liệu', async () => {
+      mockPrisma.hangHoa.findMany.mockResolvedValue([]);
+      expect(await service.getAllLoadingBalance(INVALID_ID as any)).toEqual([]);
     });
   });
 

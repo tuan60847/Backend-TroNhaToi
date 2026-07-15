@@ -2,25 +2,26 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateThietBiDto } from '../dto/create-thiet-bi.dto';
 import { UpdateThietBiDto } from '../dto/update-thiet-bi.dto';
+import { SearchThietBiDto } from '../dto/search-thiet-bi.dto';
 
 @Injectable()
 export class ThietBiService {
   constructor(private prisma: PrismaService) {}
 
-  findAll() {
-    return this.prisma.thietBi.findMany({
-      //include: { lapRap: { include: { phong: true } } },
-    });
+  private transform(raw: any) {
+    const { thietBiId, isDelete, ...rest } = raw;
+    return { ...rest, thietBiID: thietBiId };
+  }
+
+  async findAll() {
+    const rows = await this.prisma.thietBi.findMany({ where: { isDelete: false } });
+    return rows.map((r) => this.transform(r));
   }
 
   async findOne(id: number) {
-    // const item = await this.prisma.thietBi.findUnique({
-    //   where: { thietBiId: id },
-    //   include: { lapRap: { include: { phong: true } } },
-    // });
-    // if (!item) throw new NotFoundException(`ThietBi với id ${id} không tồn tại`);
-    // return item;
-    return null;
+    const item = await this.prisma.thietBi.findFirst({ where: { thietBiId: id, isDelete: false } });
+    if (!item) throw new NotFoundException(`ThietBi với id ${id} không tồn tại`);
+    return this.transform(item);
   }
 
   create(dto: CreateThietBiDto) {
@@ -34,6 +35,53 @@ export class ThietBiService {
 
   async remove(id: number) {
     await this.findOne(id);
-    return this.prisma.thietBi.delete({ where: { thietBiId: id } });
+    return this.prisma.thietBi.update({ where: { thietBiId: id }, data: { isDelete: true } });
   }
+  async search(req: SearchThietBiDto) {
+    const { q, trangThai, limit = 10, offset = 0, sortBy = 'thietBiId', sort = 'desc' } = req;
+    const where: any = { isDelete: false };
+
+    if (q) {
+      where.OR = [
+        { tenThietBi: { contains: q } },
+        { loai: { contains: q } },
+      ];
+    }
+
+    if (trangThai !== undefined) {
+      where.trangThai = trangThai;
+    }
+
+    const [rows, total] = await Promise.all([
+      this.prisma.thietBi.findMany({
+        where,
+        orderBy: { [sortBy]: sort },
+        take: Number(limit),
+        skip: Number(offset),
+      }),
+      this.prisma.thietBi.count({ where }),
+    ]);
+
+    return { total, data: rows.map((r) => this.transform(r)) };
+  }
+
+  async searchByName(ten: string) {
+    const rows = await this.prisma.thietBi.findMany({
+      where: { tenThietBi: { contains: ten }, isDelete: false },
+    });
+    return rows.map((r) => this.transform(r));
+  }
+
+  async getAllLoadingBalance(id?: number) {
+    const rows = await this.prisma.thietBi.findMany({
+      where: { isDelete: false },
+      orderBy: { thietBiId: 'asc' },
+      take: 15,
+      ...(id !== undefined && id !== null
+        ? { skip: 1, cursor: { thietBiId: id } }
+        : {}),
+    });
+    return rows.map((r) => this.transform(r));
+  }
+
 }

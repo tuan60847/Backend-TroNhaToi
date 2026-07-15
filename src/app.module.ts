@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
+import { ThongBaoModule } from './thong-bao/thong-bao.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { LoaiPhongModule } from './loai-phong/loai-phong.module';
@@ -20,11 +22,14 @@ import { LapRapModule } from './lap-rap/lap-rap.module';
 import { SuaChuaModule } from './sua-chua/sua-chua.module';
 import { HoaDonSuaChuaModule } from './hoa-don-sua-chua/hoa-don-sua-chua.module';
 import { NguoiLuuTruTamThoiModule } from './nguoi-luu-tru-tam-thoi/nguoi-luu-tru-tam-thoi.module';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     PrismaModule,
+    ThongBaoModule,
     AuthModule,
     LoaiPhongModule,
     PhongModule,
@@ -44,6 +49,7 @@ import { NguoiLuuTruTamThoiModule } from './nguoi-luu-tru-tam-thoi/nguoi-luu-tru
     SuaChuaModule,
     HoaDonSuaChuaModule,
     NguoiLuuTruTamThoiModule,
+    CloudinaryModule,
   ],
 })
 export class AppModule {}

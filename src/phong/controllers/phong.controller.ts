@@ -10,7 +10,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 @UseGuards(JwtAuthGuard)
 @Controller('phong')
 export class PhongController {
-  constructor(private readonly phongService: PhongService) {}
+  constructor(private readonly phongService: PhongService) { }
 
   @Post()
   @ApiOperation({ summary: 'Tạo Phòng mới' })
@@ -18,7 +18,14 @@ export class PhongController {
     return this.phongService.create(dto);
   }
 
-  @Get()
+  @Get(':phongId/getListNguoiThue')
+  @ApiOperation({ summary: 'Danh sách người thuê theo ID phòng' })
+  @ApiParam({ name: 'phongId', description: 'ID của Phòng' })
+  async getListNguoiThueByPhongId(@Param('phongId', ParseIntPipe) phongId: number) {
+    return this.phongService.getListNguoiThueByPhongId(phongId);
+  }
+
+  @Get('findAll')
   @ApiOperation({ summary: 'Danh sách Phòng' })
   findAll() {
     return this.phongService.findAll();
@@ -41,5 +48,12 @@ export class PhongController {
   @ApiOperation({ summary: 'Xóa Phòng' })
   remove(@Param('phongId', ParseIntPipe) id: number) {
     return this.phongService.remove(id);
+  }
+
+  @Get('thiet-bi/:thietBiId')
+  @ApiOperation({ summary: 'Lấy phòng theo mã thiết bị (qua bảng lắp ráp)' })
+  @ApiParam({ name: 'thietBiId', description: 'ID của thiết bị' })
+  getPhongByThietBiId(@Param('thietBiId', ParseIntPipe) thietBiId: number) {
+    return this.phongService.getPhongByThietBiId(thietBiId);
   }
 }

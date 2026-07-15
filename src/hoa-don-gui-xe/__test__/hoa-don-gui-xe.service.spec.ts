@@ -7,10 +7,12 @@ import { NotFoundException } from '@nestjs/common';
 const mockPrisma = {
   hoaDonGuiXe: {
     findMany:  jest.fn(),
-    findUnique: jest.fn(),
+    findFirst: jest.fn(),
     create:    jest.fn(),
     update:    jest.fn(),
-    delete:    jest.fn(),
+    count:     jest.fn(),
+    aggregate: jest.fn(),
+    groupBy:   jest.fn(),
   },
 };
 
@@ -59,21 +61,21 @@ describe('HoaDonGuiXeService', () => {
   // ── findOne ────────────────────────────────────────────────────────
   describe('findOne()', () => {
     it('trả về record khi tìm thấy', async () => {
-      mockPrisma.hoaDonGuiXe.findUnique.mockResolvedValue(MOCK_ITEM);
+      mockPrisma.hoaDonGuiXe.findFirst.mockResolvedValue(MOCK_ITEM);
       const result = await service.findOne(VALID_ID as any);
       expect(result).toEqual(MOCK_ITEM);
-      expect(mockPrisma.hoaDonGuiXe.findUnique).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { maHoaDon: VALID_ID } }),
+      expect(mockPrisma.hoaDonGuiXe.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { maHoaDon: VALID_ID, isDelete: false } }),
       );
     });
 
     it('ném NotFoundException khi không tìm thấy', async () => {
-      mockPrisma.hoaDonGuiXe.findUnique.mockResolvedValue(null);
+      mockPrisma.hoaDonGuiXe.findFirst.mockResolvedValue(null);
       await expect(service.findOne(INVALID_ID as any)).rejects.toThrow(NotFoundException);
     });
 
     it('ném NotFoundException với message đúng', async () => {
-      mockPrisma.hoaDonGuiXe.findUnique.mockResolvedValue(null);
+      mockPrisma.hoaDonGuiXe.findFirst.mockResolvedValue(null);
       await expect(service.findOne(INVALID_ID as any))
         .rejects.toThrow('không tồn tại');
     });
@@ -101,7 +103,7 @@ describe('HoaDonGuiXeService', () => {
   describe('update()', () => {
     it('cập nhật và trả về record đã sửa', async () => {
       const updated = { ...MOCK_ITEM, ...UPDATE_DTO };
-      mockPrisma.hoaDonGuiXe.findUnique.mockResolvedValue(MOCK_ITEM);
+      mockPrisma.hoaDonGuiXe.findFirst.mockResolvedValue(MOCK_ITEM);
       mockPrisma.hoaDonGuiXe.update.mockResolvedValue(updated);
 
       const result = await service.update(VALID_ID as any, UPDATE_DTO as any);
@@ -112,13 +114,13 @@ describe('HoaDonGuiXeService', () => {
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {
-      mockPrisma.hoaDonGuiXe.findUnique.mockResolvedValue(null);
+      mockPrisma.hoaDonGuiXe.findFirst.mockResolvedValue(null);
       await expect(service.update(INVALID_ID as any, UPDATE_DTO as any))
         .rejects.toThrow(NotFoundException);
     });
 
     it('không gọi prisma.update khi record không tồn tại', async () => {
-      mockPrisma.hoaDonGuiXe.findUnique.mockResolvedValue(null);
+      mockPrisma.hoaDonGuiXe.findFirst.mockResolvedValue(null);
       try {
         await service.update(INVALID_ID as any, UPDATE_DTO as any);
       } catch {}
@@ -128,28 +130,136 @@ describe('HoaDonGuiXeService', () => {
 
   // ── remove ─────────────────────────────────────────────────────────
   describe('remove()', () => {
-    it('xóa và trả về record đã xóa', async () => {
-      mockPrisma.hoaDonGuiXe.findUnique.mockResolvedValue(MOCK_ITEM);
-      mockPrisma.hoaDonGuiXe.delete.mockResolvedValue(MOCK_ITEM);
+    it('xóa mềm (set isDelete=true) và trả về record đã cập nhật', async () => {
+      mockPrisma.hoaDonGuiXe.findFirst.mockResolvedValue(MOCK_ITEM);
+      mockPrisma.hoaDonGuiXe.update.mockResolvedValue({ ...MOCK_ITEM, isDelete: true });
 
       const result = await service.remove(VALID_ID as any);
-      expect(result).toEqual(MOCK_ITEM);
-      expect(mockPrisma.hoaDonGuiXe.delete).toHaveBeenCalledWith(
-        { where: { maHoaDon: VALID_ID } },
+      expect(result).toEqual({ ...MOCK_ITEM, isDelete: true });
+      expect(mockPrisma.hoaDonGuiXe.update).toHaveBeenCalledWith(
+        { where: { maHoaDon: VALID_ID }, data: { isDelete: true } },
       );
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {
-      mockPrisma.hoaDonGuiXe.findUnique.mockResolvedValue(null);
+      mockPrisma.hoaDonGuiXe.findFirst.mockResolvedValue(null);
       await expect(service.remove(INVALID_ID as any)).rejects.toThrow(NotFoundException);
     });
 
-    it('không gọi prisma.delete khi record không tồn tại', async () => {
-      mockPrisma.hoaDonGuiXe.findUnique.mockResolvedValue(null);
+    it('không gọi prisma.update khi record không tồn tại', async () => {
+      mockPrisma.hoaDonGuiXe.findFirst.mockResolvedValue(null);
       try {
         await service.remove(INVALID_ID as any);
       } catch {}
-      expect(mockPrisma.hoaDonGuiXe.delete).not.toHaveBeenCalled();
+      expect(mockPrisma.hoaDonGuiXe.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── search ─────────────────────────────────────────────────────────
+  describe('search()', () => {
+    it('tìm theo từ khóa q (thangNam) và lọc trangThai/idPT', async () => {
+      mockPrisma.hoaDonGuiXe.findMany.mockResolvedValue([MOCK_ITEM]);
+      mockPrisma.hoaDonGuiXe.count.mockResolvedValue(1);
+
+      const result = await service.search({ q: '01/2024', trangThai: 0, idPT: 1 } as any);
+
+      expect(result).toEqual({ total: 1, data: [MOCK_ITEM] });
+      expect(mockPrisma.hoaDonGuiXe.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isDelete: false, thangNam: { contains: '01/2024' }, TrangThai: 0, idPT: 1 },
+          orderBy: { maHoaDon: 'desc' },
+          take: 10,
+          skip: 0,
+        }),
+      );
+    });
+
+    it('không truyền gì thì chỉ lọc isDelete: false', async () => {
+      mockPrisma.hoaDonGuiXe.findMany.mockResolvedValue([]);
+      mockPrisma.hoaDonGuiXe.count.mockResolvedValue(0);
+
+      await service.search({} as any);
+
+      expect(mockPrisma.hoaDonGuiXe.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { isDelete: false } }),
+      );
+    });
+  });
+
+  // ── statistics ─────────────────────────────────────────────────────
+  describe('statistics()', () => {
+    it('tổng hợp doanh thu/số hóa đơn và nhóm theo thangNam', async () => {
+      mockPrisma.hoaDonGuiXe.aggregate.mockResolvedValue({
+        _sum: { soTien: 200000 },
+        _count: { maHoaDon: 2 },
+      });
+      mockPrisma.hoaDonGuiXe.groupBy.mockResolvedValue([
+        { thangNam: '01/2024', _sum: { soTien: 200000 }, _count: { maHoaDon: 2 } },
+      ]);
+
+      const result = await service.statistics({} as any);
+
+      expect(result).toEqual({
+        totalInvoices: 2,
+        totalRevenue: 200000,
+        byMonth: [{ thangNam: '01/2024', totalInvoices: 2, totalRevenue: 200000 }],
+      });
+    });
+
+    it('lọc theo thangNam khi truyền vào', async () => {
+      mockPrisma.hoaDonGuiXe.aggregate.mockResolvedValue({ _sum: { soTien: 0 }, _count: { maHoaDon: 0 } });
+      mockPrisma.hoaDonGuiXe.groupBy.mockResolvedValue([]);
+
+      await service.statistics({ thangNam: '01/2024' } as any);
+
+      expect(mockPrisma.hoaDonGuiXe.aggregate).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { isDelete: false, thangNam: '01/2024' } }),
+      );
+    });
+
+    it('trả về 0 và byMonth rỗng khi không có dữ liệu', async () => {
+      mockPrisma.hoaDonGuiXe.aggregate.mockResolvedValue({ _sum: { soTien: null }, _count: { maHoaDon: 0 } });
+      mockPrisma.hoaDonGuiXe.groupBy.mockResolvedValue([]);
+
+      const result = await service.statistics({} as any);
+
+      expect(result).toEqual({ totalInvoices: 0, totalRevenue: 0, byMonth: [] });
+    });
+  });
+
+  // ── getAllLoadingBalance ──────────────────────────────────────────
+  describe('getAllLoadingBalance()', () => {
+    it('lấy 15 phần tử đầu khi không truyền id', async () => {
+      mockPrisma.hoaDonGuiXe.findMany.mockResolvedValue([MOCK_ITEM]);
+      const result = await service.getAllLoadingBalance();
+      expect(result).toEqual([MOCK_ITEM]);
+      expect(mockPrisma.hoaDonGuiXe.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isDelete: false },
+          orderBy: { maHoaDon: 'asc' },
+          take: 15,
+        }),
+      );
+    });
+
+    it('lấy 15 phần tử tiếp theo kể từ id truyền vào (cursor)', async () => {
+      mockPrisma.hoaDonGuiXe.findMany.mockResolvedValue([MOCK_ITEM]);
+      const result = await service.getAllLoadingBalance(VALID_ID as any);
+      expect(result).toEqual([MOCK_ITEM]);
+      expect(mockPrisma.hoaDonGuiXe.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isDelete: false },
+          orderBy: { maHoaDon: 'asc' },
+          take: 15,
+          skip: 1,
+          cursor: { maHoaDon: VALID_ID },
+        }),
+      );
+    });
+
+    it('trả về mảng rỗng khi không còn dữ liệu', async () => {
+      mockPrisma.hoaDonGuiXe.findMany.mockResolvedValue([]);
+      expect(await service.getAllLoadingBalance(INVALID_ID as any)).toEqual([]);
     });
   });
 

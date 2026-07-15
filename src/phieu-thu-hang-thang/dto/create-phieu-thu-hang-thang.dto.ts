@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsNumber, IsOptional, IsString } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 
 export class CreatePhieuThuHangThangDto {
@@ -20,8 +20,8 @@ export class CreatePhieuThuHangThangDto {
 
   @ApiPropertyOptional({ description: 'Mã hóa đơn phòng' })
   @IsOptional()
-  @IsInt()
-  maHoaDon?: number;
+  @IsString()
+  maHoaDon?: string;
 
 }
 

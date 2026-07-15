@@ -18,6 +18,11 @@ export class CreateHangHoaDto {
   @IsNumber()
   giaBan?: number;
 
+  @ApiPropertyOptional({ description: 'Đơn vị tính' })
+  @IsOptional()
+  @IsString()
+  donViTinh?: string; 
+
 }
 
 export class UpdateHangHoaDto extends PartialType(CreateHangHoaDto) {}

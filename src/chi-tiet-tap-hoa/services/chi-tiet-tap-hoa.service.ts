@@ -35,4 +35,16 @@ export class ChiTietTapHoaService {
     await this.findOne(id);
     return this.prisma.chiTietTapHoa.delete({ where: { maChiTietHoaDon: id } });
   }
+
+  async findByMaHoaDon(maHoaDon: string) {
+    return this.prisma.chiTietTapHoa.findMany({
+      where: {
+        maHoaDon: maHoaDon,
+      },
+      include: {
+        hangHoa: true,
+        hoaDonTapHoa: true,
+      },
+    });
+  }
 }
