@@ -301,3 +301,18 @@ model ThongBao {
 
   @@map("thongbao")
 }
+
+model ThongKeSnapshot {
+  id          Int      @id @default(autoincrement())
+  kyThongKe   String   @unique @db.VarChar(7)
+  nam         Int
+  thang       Int?
+  duLieu      Json
+  tinhTuLuc   DateTime @default(now()) @db.DateTime(3)
+  hetHanLuc   DateTime @db.DateTime(3)
+  createdAt   DateTime @default(now()) @db.DateTime(3)
+  updatedAt   DateTime @updatedAt @db.DateTime(3)
+
+  @@index([nam, thang])
+  @@map("thongkesnapshot")
+}
