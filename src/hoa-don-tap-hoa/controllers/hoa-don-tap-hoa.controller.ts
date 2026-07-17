@@ -23,9 +23,7 @@ export class HoaDonTapHoaController {
   @Get('findAll')
   @ApiOperation({ summary: 'Danh sách Hóa Đơn Tạp Hóa' })
   findAll() {
-    //Test 
-    //return this.hoaDonTapHoaService.findAll();
-    return this.hoaDonTapHoaService.findDSHangHoaModel();
+    return this.hoaDonTapHoaService.findAll();
   }
 
   @Get('search')
@@ -35,7 +33,9 @@ export class HoaDonTapHoaController {
   }
 
   @Get('statistics')
-  @ApiOperation({ summary: 'Thống kê Hóa Đơn Tạp Hóa (tổng doanh thu, số hóa đơn theo tháng)' })
+  @ApiOperation({
+    summary: 'Thống kê Hóa Đơn Tạp Hóa theo năm (doanh thu, đã thu, còn nợ)',
+  })
   statistics(@Query() dto: StatisticsHoaDonTapHoaDto) {
     return this.hoaDonTapHoaService.statistics(dto);
   }

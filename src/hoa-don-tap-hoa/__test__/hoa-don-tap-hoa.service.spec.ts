@@ -29,6 +29,44 @@ const INVALID_ID = 'TH9999999Z9';
 const CREATE_DTO = {"idnt": 1, "ngayBan": "2024-01-15", "tongTien": 50000};
 const UPDATE_DTO = {"tongTien": 75000};
 const MOCK_ITEM  = { maHoaDon: VALID_ID, ...CREATE_DTO };
+const MOCK_RAW_FULL = {
+  ...MOCK_ITEM,
+  nguoiThue: { hoTen: 'Nguyễn Văn A' },
+  chiTietTapHoa: [
+    {
+      maHangHoa: 1,
+      soLuong: 2,
+      hangHoa: { maHangHoa: 1, tenHangHoa: 'Nước suối' },
+    },
+  ],
+  phieuThuHdTh: [{ maPhieuThu: 1, soTien: 20000 }],
+};
+const CREATE_RAW_FULL = {
+  ...MOCK_ITEM,
+  nguoiThue: null,
+  chiTietTapHoa: [],
+  phieuThuHdTh: [],
+};
+const MOCK_TRANSFORMED = {
+  ...MOCK_ITEM,
+  tenNguoiMua: 'Nguyễn Văn A',
+  phieuThu: { maPhieuThu: 1, soTien: 20000 },
+  dsPhieuThu: [{ maPhieuThu: 1, soTien: 20000 }],
+  daThu: 20000,
+  conNo: 30000,
+  dsHangHoa: [{ maHangHoa: 1, tenHangHoa: 'Nước suối' }],
+  soLuong: { 1: 2 },
+};
+const CREATE_TRANSFORMED = {
+  ...MOCK_ITEM,
+  tenNguoiMua: null,
+  phieuThu: null,
+  dsPhieuThu: [],
+  daThu: 0,
+  conNo: 50000,
+  dsHangHoa: [],
+  soLuong: {},
+};
 
 describe('HoaDonTapHoaService', () => {
   let service: HoaDonTapHoaService;
@@ -53,9 +91,9 @@ describe('HoaDonTapHoaService', () => {
   // ── findAll ────────────────────────────────────────────────────────
   describe('findAll()', () => {
     it('trả về mảng khi có dữ liệu', async () => {
-      mockPrisma.hoaDonTapHoa.findMany.mockResolvedValue([MOCK_ITEM]);
+      mockPrisma.hoaDonTapHoa.findMany.mockResolvedValue([MOCK_RAW_FULL]);
       const result = await service.findAll();
-      expect(result).toEqual([MOCK_ITEM]);
+      expect(result).toEqual([MOCK_TRANSFORMED]);
       expect(mockPrisma.hoaDonTapHoa.findMany).toHaveBeenCalledTimes(1);
     });
 
@@ -68,9 +106,9 @@ describe('HoaDonTapHoaService', () => {
   // ── findOne ────────────────────────────────────────────────────────
   describe('findOne()', () => {
     it('trả về record khi tìm thấy', async () => {
-      mockPrisma.hoaDonTapHoa.findFirst.mockResolvedValue(MOCK_ITEM);
+      mockPrisma.hoaDonTapHoa.findFirst.mockResolvedValue(MOCK_RAW_FULL);
       const result = await service.findOne(VALID_ID as any);
-      expect(result).toEqual(MOCK_ITEM);
+      expect(result).toEqual(MOCK_TRANSFORMED);
       expect(mockPrisma.hoaDonTapHoa.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({ where: { maHoaDon: VALID_ID, isDelete: false } }),
       );
@@ -92,8 +130,9 @@ describe('HoaDonTapHoaService', () => {
   describe('create()', () => {
     it('tạo mới và trả về record', async () => {
       mockPrisma.hoaDonTapHoa.create.mockResolvedValue(MOCK_ITEM);
+      mockPrisma.hoaDonTapHoa.findFirst.mockResolvedValue(CREATE_RAW_FULL);
       const result = await service.create(CREATE_DTO as any);
-      expect(result).toEqual(MOCK_ITEM);
+      expect(result).toEqual(CREATE_TRANSFORMED);
       expect(mockPrisma.hoaDonTapHoa.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ ...CREATE_DTO, maHoaDon: expect.any(String) }),
       });
@@ -101,6 +140,7 @@ describe('HoaDonTapHoaService', () => {
 
     it('gọi prisma.create đúng 1 lần', async () => {
       mockPrisma.hoaDonTapHoa.create.mockResolvedValue(MOCK_ITEM);
+      mockPrisma.hoaDonTapHoa.findFirst.mockResolvedValue(CREATE_RAW_FULL);
       await service.create(CREATE_DTO as any);
       expect(mockPrisma.hoaDonTapHoa.create).toHaveBeenCalledTimes(1);
     });
@@ -109,12 +149,19 @@ describe('HoaDonTapHoaService', () => {
   // ── update ─────────────────────────────────────────────────────────
   describe('update()', () => {
     it('cập nhật và trả về record đã sửa', async () => {
-      const updated = { ...MOCK_ITEM, ...UPDATE_DTO };
-      mockPrisma.hoaDonTapHoa.findFirst.mockResolvedValue(MOCK_ITEM);
+      const updated = {
+        ...MOCK_RAW_FULL,
+        ...UPDATE_DTO,
+      };
+      mockPrisma.hoaDonTapHoa.findFirst.mockResolvedValue(MOCK_RAW_FULL);
       mockPrisma.hoaDonTapHoa.update.mockResolvedValue(updated);
 
       const result = await service.update(VALID_ID as any, UPDATE_DTO as any);
-      expect(result).toEqual(updated);
+      expect(result).toEqual({
+        ...MOCK_TRANSFORMED,
+        ...UPDATE_DTO,
+        conNo: 55000,
+      });
       expect(mockPrisma.hoaDonTapHoa.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { maHoaDon: VALID_ID } }),
       );
@@ -165,12 +212,12 @@ describe('HoaDonTapHoaService', () => {
   // ── search ─────────────────────────────────────────────────────────
   describe('search()', () => {
     it('tìm theo mã (contains) và trả về { total, data }', async () => {
-      mockPrisma.hoaDonTapHoa.findMany.mockResolvedValue([MOCK_ITEM]);
+      mockPrisma.hoaDonTapHoa.findMany.mockResolvedValue([MOCK_RAW_FULL]);
       mockPrisma.hoaDonTapHoa.count.mockResolvedValue(1);
 
       const result = await service.search({ ma: 'TH00000001A' } as any);
 
-      expect(result).toEqual({ total: 1, data: [MOCK_ITEM] });
+      expect(result).toEqual({ total: 1, data: [MOCK_TRANSFORMED] });
       expect(mockPrisma.hoaDonTapHoa.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { isDelete: false, maHoaDon: { contains: 'TH00000001A' } },
@@ -193,7 +240,7 @@ describe('HoaDonTapHoaService', () => {
     });
 
     it('không truyền ma thì chỉ lọc isDelete: false', async () => {
-      mockPrisma.hoaDonTapHoa.findMany.mockResolvedValue([MOCK_ITEM]);
+      mockPrisma.hoaDonTapHoa.findMany.mockResolvedValue([MOCK_RAW_FULL]);
       mockPrisma.hoaDonTapHoa.count.mockResolvedValue(1);
 
       await service.search({} as any);
@@ -206,45 +253,107 @@ describe('HoaDonTapHoaService', () => {
 
   // ── statistics ─────────────────────────────────────────────────────
   describe('statistics()', () => {
-    it('tổng hợp doanh thu/số hóa đơn và nhóm theo tháng', async () => {
-      mockPrisma.hoaDonTapHoa.aggregate.mockResolvedValue({
-        _sum: { tongTien: 150000 },
-        _count: { maHoaDon: 2 },
-      });
+    it('tổng hợp doanh thu, đã thu, còn nợ và trả đủ 12 tháng', async () => {
       mockPrisma.hoaDonTapHoa.findMany.mockResolvedValue([
-        { ngayBan: new Date('2024-01-15'), tongTien: 50000 },
-        { ngayBan: new Date('2024-01-20'), tongTien: 100000 },
+        {
+          ngayBan: new Date(Date.UTC(2024, 0, 15)),
+          tongTien: 50000,
+          phieuThuHdTh: [{ soTien: 20000 }],
+        },
+        {
+          ngayBan: new Date(Date.UTC(2024, 0, 20)),
+          tongTien: 100000,
+          phieuThuHdTh: [],
+        },
       ]);
 
-      const result = await service.statistics({} as any);
+      const result = await service.statistics({ year: 2024 });
 
-      expect(result).toEqual({
+      expect(result).toEqual(expect.objectContaining({
+        year: 2024,
         totalInvoices: 2,
         totalRevenue: 150000,
-        byMonth: [{ month: '2024-01', totalInvoices: 2, totalRevenue: 150000 }],
+        totalCollected: 20000,
+        totalDebt: 130000,
+      }));
+      expect(result.byMonth).toHaveLength(12);
+      expect(result.byMonth[0]).toEqual({
+        month: '2024-01',
+        totalInvoices: 2,
+        totalRevenue: 150000,
+        totalCollected: 20000,
+        totalDebt: 130000,
       });
     });
 
-    it('lọc theo khoảng ngày from/to', async () => {
-      mockPrisma.hoaDonTapHoa.aggregate.mockResolvedValue({ _sum: { tongTien: 0 }, _count: { maHoaDon: 0 } });
+    it('lọc hóa đơn theo năm', async () => {
       mockPrisma.hoaDonTapHoa.findMany.mockResolvedValue([]);
 
-      await service.statistics({ from: '2024-01-01', to: '2024-01-31' } as any);
+      await service.statistics({ year: 2024 });
 
-      expect(mockPrisma.hoaDonTapHoa.aggregate).toHaveBeenCalledWith(
+      expect(mockPrisma.hoaDonTapHoa.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { isDelete: false, ngayBan: { gte: new Date('2024-01-01'), lte: new Date('2024-01-31') } },
+          where: {
+            isDelete: false,
+            ngayBan: {
+              gte: new Date(Date.UTC(2024, 0, 1)),
+              lte: new Date(Date.UTC(2024, 11, 31, 23, 59, 59, 999)),
+            },
+          },
+          select: expect.objectContaining({
+            phieuThuHdTh: expect.objectContaining({
+              where: {
+                isDelete: false,
+                ngayThu: {
+                  gte: new Date(Date.UTC(2024, 0, 1)),
+                  lte: new Date(Date.UTC(2024, 11, 31, 23, 59, 59, 999)),
+                },
+              },
+            }),
+          }),
         }),
       );
     });
 
-    it('trả về 0 và byMonth rỗng khi không có dữ liệu', async () => {
-      mockPrisma.hoaDonTapHoa.aggregate.mockResolvedValue({ _sum: { tongTien: null }, _count: { maHoaDon: 0 } });
+    it('tính công nợ sau khi tổng hợp các hóa đơn', async () => {
+      mockPrisma.hoaDonTapHoa.findMany.mockResolvedValue([
+        {
+          ngayBan: new Date(Date.UTC(2024, 0, 15)),
+          tongTien: 100,
+          phieuThuHdTh: [{ soTien: 150 }],
+        },
+        {
+          ngayBan: new Date(Date.UTC(2024, 0, 20)),
+          tongTien: 100,
+          phieuThuHdTh: [],
+        },
+      ]);
+
+      const result = await service.statistics({ year: 2024 });
+
+      expect(result.totalDebt).toBe(50);
+      expect(result.byMonth[0].totalDebt).toBe(50);
+    });
+
+    it('trả đủ 12 tháng bằng 0 khi không có dữ liệu', async () => {
       mockPrisma.hoaDonTapHoa.findMany.mockResolvedValue([]);
 
-      const result = await service.statistics({} as any);
+      const result = await service.statistics({ year: 2024 });
 
-      expect(result).toEqual({ totalInvoices: 0, totalRevenue: 0, byMonth: [] });
+      expect(result.totalInvoices).toBe(0);
+      expect(result.totalRevenue).toBe(0);
+      expect(result.totalCollected).toBe(0);
+      expect(result.totalDebt).toBe(0);
+      expect(result.byMonth).toHaveLength(12);
+      expect(
+        result.byMonth.every(
+          (month) =>
+            month.totalInvoices === 0 &&
+            month.totalRevenue === 0 &&
+            month.totalCollected === 0 &&
+            month.totalDebt === 0,
+        ),
+      ).toBe(true);
     });
   });
 

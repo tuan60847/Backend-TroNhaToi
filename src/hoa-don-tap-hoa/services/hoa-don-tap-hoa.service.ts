@@ -18,11 +18,6 @@ export class HoaDonTapHoaService {
   } as const;
 
 
-  private readonly selectAll = {
-    nguoiThue: true,
-    phieuThuHdTh: { where: { isDelete: false } },
-  } as const;
-
   // App Flutter hiện chỉ hiển thị 1 phiếu thu/hóa đơn (field `phieuThu`, object đơn):
   // lấy phiếu thu mới nhất để giữ tương thích ngược, đồng thời trả thêm
   // `dsPhieuThu`/`daThu` cho các client cần đầy đủ danh sách nhiều phiếu thu.
@@ -49,6 +44,7 @@ export class HoaDonTapHoaService {
 
     // 1 hóa đơn tạp hóa có thể có nhiều phiếu thu (thu nhiều lần)
     const daThu = phieuThuHdTh.reduce((sum: number, pt: any) => sum + Number(pt.soTien ?? 0), 0);
+    const tongTien = Number(rest.tongTien ?? 0);
 
     return {
       ...rest,
@@ -56,6 +52,7 @@ export class HoaDonTapHoaService {
       phieuThu: this.latestPhieuThu(phieuThuHdTh),
       dsPhieuThu: phieuThuHdTh,
       daThu,
+      conNo: Math.max(tongTien - daThu, 0),
       dsHangHoa,
       soLuong,
     };
@@ -64,7 +61,7 @@ export class HoaDonTapHoaService {
   async findAll() {
     const rows = await this.prisma.hoaDonTapHoa.findMany({
       where: { isDelete: false },
-      include: this.selectAll,
+      include: this.includeAll,
     });
     return rows.map((r) => this.transform(r));
   }
@@ -72,7 +69,7 @@ export class HoaDonTapHoaService {
   async findOne(id: string) {
     const item = await this.prisma.hoaDonTapHoa.findFirst({
       where: { maHoaDon: id, isDelete: false },
-      include: this.selectAll,
+      include: this.includeAll,
     });
     if (!item) throw new NotFoundException(`HoaDonTapHoa với id ${id} không tồn tại`);
     return this.transform(item);
@@ -160,7 +157,7 @@ export class HoaDonTapHoaService {
         });
       }
 
-      return tx.hoaDonTapHoa.update({
+      const result = await tx.hoaDonTapHoa.update({
         where: {
           maHoaDon: id,
         },
@@ -171,6 +168,8 @@ export class HoaDonTapHoaService {
         },
         include: this.includeAll,
       });
+
+      return this.transform(result);
     });
   }
 
@@ -189,6 +188,7 @@ export class HoaDonTapHoaService {
     const [data, total] = await Promise.all([
       this.prisma.hoaDonTapHoa.findMany({
         where,
+        include: this.includeAll,
         orderBy: { [sortBy]: sort },
         take: Number(limit),
         skip: Number(offset),
@@ -196,47 +196,80 @@ export class HoaDonTapHoaService {
       this.prisma.hoaDonTapHoa.count({ where }),
     ]);
 
-    return { total, data };
+    return {
+      total,
+      data: data.map((item) => this.transform(item)),
+    };
   }
 
   async statistics(req: StatisticsHoaDonTapHoaDto) {
-    const { from, to } = req;
-    const where: any = { isDelete: false };
+    const year = req.year ?? new Date().getFullYear();
+    const from = new Date(Date.UTC(year, 0, 1));
+    const to = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
 
-    if (from || to) {
-      where.ngayBan = {};
-      if (from) where.ngayBan.gte = new Date(from);
-      if (to) where.ngayBan.lte = new Date(to);
-    }
+    const items = await this.prisma.hoaDonTapHoa.findMany({
+      where: {
+        isDelete: false,
+        ngayBan: { gte: from, lte: to },
+      },
+      select: {
+        ngayBan: true,
+        tongTien: true,
+        phieuThuHdTh: {
+          where: {
+            isDelete: false,
+            ngayThu: { gte: from, lte: to },
+          },
+          select: { soTien: true },
+        },
+      },
+    });
 
-    const [aggregate, items] = await Promise.all([
-      this.prisma.hoaDonTapHoa.aggregate({
-        where,
-        _sum: { tongTien: true },
-        _count: { maHoaDon: true },
-      }),
-      this.prisma.hoaDonTapHoa.findMany({
-        where,
-        select: { ngayBan: true, tongTien: true },
-      }),
-    ]);
+    const byMonth = Array.from({ length: 12 }, (_, index) => ({
+      month: `${year}-${String(index + 1).padStart(2, '0')}`,
+      totalInvoices: 0,
+      totalRevenue: 0,
+      totalCollected: 0,
+      totalDebt: 0,
+    }));
 
-    const byMonthMap = new Map<string, { totalInvoices: number; totalRevenue: number }>();
+    let totalRevenue = 0;
+    let totalCollected = 0;
+
     for (const item of items) {
       if (!item.ngayBan) continue;
-      const month = item.ngayBan.toISOString().slice(0, 7);
-      const cur = byMonthMap.get(month) ?? { totalInvoices: 0, totalRevenue: 0 };
-      cur.totalInvoices += 1;
-      cur.totalRevenue += Number(item.tongTien ?? 0);
-      byMonthMap.set(month, cur);
+
+      const revenue = Number(item.tongTien ?? 0);
+      const collected = item.phieuThuHdTh.reduce(
+        (sum, receipt) => sum + Number(receipt.soTien ?? 0),
+        0,
+      );
+      const month = byMonth[item.ngayBan.getUTCMonth()];
+
+      month.totalInvoices += 1;
+      month.totalRevenue += revenue;
+      month.totalCollected += collected;
+
+      totalRevenue += revenue;
+      totalCollected += collected;
     }
 
+    for (const month of byMonth) {
+      month.totalDebt = Math.max(
+        month.totalRevenue - month.totalCollected,
+        0,
+      );
+    }
+
+    const totalDebt = Math.max(totalRevenue - totalCollected, 0);
+
     return {
-      totalInvoices: aggregate._count.maHoaDon,
-      totalRevenue: Number(aggregate._sum.tongTien ?? 0),
-      byMonth: Array.from(byMonthMap.entries())
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([month, v]) => ({ month, ...v })),
+      year,
+      totalInvoices: items.length,
+      totalRevenue,
+      totalCollected,
+      totalDebt,
+      byMonth,
     };
   }
 
@@ -253,30 +286,7 @@ export class HoaDonTapHoaService {
 
   // Get Danh sách Hàng Hoá Model
   async findDSHangHoaModel() {
-    const data = await this.prisma.hoaDonTapHoa.findMany({
-      where: {
-        isDelete: false,
-      },
-      include: {
-        nguoiThue: {
-          select: {
-            hoTen: true,
-          },
-        },
-        phieuThuHdTh: { where: { isDelete: false } },
-      },
-    });
-
-    return data.map(({ nguoiThue, phieuThuHdTh, ...hoaDon }) => ({
-      hoaDon,
-
-      // app Flutter đọc field `phieuThu` (object đơn, phiếu thu mới nhất)
-      // phieuThu: this.latestPhieuThu(phieuThuHdTh),
-      // dsPhieuThu: phieuThuHdTh,
-      daThu: phieuThuHdTh.reduce((sum: number, pt: any) => sum + Number(pt.soTien ?? 0), 0),
-      tongtien: Number(hoaDon.tongTien ?? 0),
-      tenNguoiMua: nguoiThue?.hoTen ?? null,
-    }));
+    return this.findAll();
   }
 
 

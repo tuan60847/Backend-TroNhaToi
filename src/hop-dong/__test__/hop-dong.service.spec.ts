@@ -1,234 +1,215 @@
-// import { Test, TestingModule } from '@nestjs/testing';
-// import { HopDongService } from '../services/hop-dong.service';
-// import { PrismaService } from '../../prisma/prisma.service';
-// import { NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { PrismaService } from '../../prisma/prisma.service';
+import { HopDongService } from '../services/hop-dong.service';
 
-// // ─── Mock Prisma ─────────────────────────────────────────────────────
-// const mockPrisma = {
-//   hopDong: {
-//     findMany:  jest.fn(),
-//     findFirst: jest.fn(),
-//     create:    jest.fn(),
-//     update:    jest.fn(),
-//     count:     jest.fn(),
-//   },
-// };
+const mockPrisma = {
+  hopDong: {
+    findMany: jest.fn(),
+    findFirst: jest.fn(),
+    count: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+  },
+  phong: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    update: jest.fn(),
+  },
+  nguoiThue: {
+    update: jest.fn(),
+  },
+  $transaction: jest.fn(),
+};
 
-// // ─── Fixtures ────────────────────────────────────────────────────────
-// const VALID_ID   = 'HD0000001A1';
-// const INVALID_ID = 'HD9999999Z9';
-// const CREATE_DTO = {"idnt": 1, "phongId": 1, "ngayKy": "2024-01-01", "ngayHetHan": "2025-01-01", "tienCoc": 2000000, "giaPhongThucTe": 2000000, "trangThai": "dangThue"};
-// const UPDATE_DTO = {"trangThai": "hetHan", "giaPhongThucTe": 2500000};
-// const MOCK_ITEM  = { hopDongId: VALID_ID, ...CREATE_DTO };
+const CREATE_DTO = {
+  idnt: 1,
+  phongId: 2,
+  ngayKy: '2024-01-01',
+  ngayHetHan: '2025-01-01',
+  tienCoc: 2000000,
+  giaPhongThucTe: 2000000,
+  trangThai: 1,
+};
 
-// describe('HopDongService', () => {
-//   let service: HopDongService;
+const MOCK_ITEM = {
+  hopDongId: '202401-2-1',
+  ...CREATE_DTO,
+  anhHopDong: 'a.jpg,b.jpg',
+  isDelete: false,
+};
 
-//   beforeEach(async () => {
-//     const module: TestingModule = await Test.createTestingModule({
-//       providers: [
-//         HopDongService,
-//         { provide: PrismaService, useValue: mockPrisma },
-//       ],
-//     }).compile();
+describe('HopDongService', () => {
+  let service: HopDongService;
 
-//     service = module.get<HopDongService>(HopDongService);
-//     jest.clearAllMocks();
-//   });
+  beforeEach(async () => {
+    mockPrisma.$transaction.mockImplementation((callback: any) =>
+      callback(mockPrisma),
+    );
 
-//   // ── Smoke ──────────────────────────────────────────────────────────
-//   it('should be defined', () => {
-//     expect(service).toBeDefined();
-//   });
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        HopDongService,
+        { provide: PrismaService, useValue: mockPrisma },
+      ],
+    }).compile();
 
-//   // ── findAll ────────────────────────────────────────────────────────
-//   describe('findAll()', () => {
-//     it('trả về mảng khi có dữ liệu', async () => {
-//       mockPrisma.hopDong.findMany.mockResolvedValue([MOCK_ITEM]);
-//       const result = await service.findAll();
-//       expect(result).toEqual([MOCK_ITEM]);
-//       expect(mockPrisma.hopDong.findMany).toHaveBeenCalledTimes(1);
-//     });
+    service = module.get(HopDongService);
+    jest.clearAllMocks();
+    mockPrisma.$transaction.mockImplementation((callback: any) =>
+      callback(mockPrisma),
+    );
+  });
 
-//     it('trả về mảng rỗng khi không có dữ liệu', async () => {
-//       mockPrisma.hopDong.findMany.mockResolvedValue([]);
-//       expect(await service.findAll()).toEqual([]);
-//     });
-//   });
+  it('được khởi tạo', () => {
+    expect(service).toBeDefined();
+  });
 
-//   // ── findOne ────────────────────────────────────────────────────────
-//   describe('findOne()', () => {
-//     it('trả về record khi tìm thấy', async () => {
-//       mockPrisma.hopDong.findFirst.mockResolvedValue(MOCK_ITEM);
-//       const result = await service.findOne(VALID_ID as any);
-//       expect(result).toEqual(MOCK_ITEM);
-//       expect(mockPrisma.hopDong.findFirst).toHaveBeenCalledWith(
-//         expect.objectContaining({ where: { hopDongId: VALID_ID, isDelete: false } }),
-//       );
-//     });
+  it('lấy danh sách và chuyển chuỗi ảnh thành mảng', async () => {
+    mockPrisma.hopDong.findMany.mockResolvedValue([MOCK_ITEM]);
 
-//     it('ném NotFoundException khi không tìm thấy', async () => {
-//       mockPrisma.hopDong.findFirst.mockResolvedValue(null);
-//       await expect(service.findOne(INVALID_ID as any)).rejects.toThrow(NotFoundException);
-//     });
+    const result = await service.findAll();
 
-//     it('ném NotFoundException với message đúng', async () => {
-//       mockPrisma.hopDong.findFirst.mockResolvedValue(null);
-//       await expect(service.findOne(INVALID_ID as any))
-//         .rejects.toThrow('không tồn tại');
-//     });
-//   });
+    expect(result[0].anhHopDong).toEqual(['a.jpg', 'b.jpg']);
+    expect(mockPrisma.hopDong.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { isDelete: false },
+        orderBy: { ngayKy: 'desc' },
+      }),
+    );
+  });
 
-//   // ── create ─────────────────────────────────────────────────────────
-//   describe('create()', () => {
-//     it('tạo mới và trả về record', async () => {
-//       mockPrisma.hopDong.create.mockResolvedValue(MOCK_ITEM);
-//       const result = await service.create(CREATE_DTO as any);
-//       expect(result).toEqual(MOCK_ITEM);
-//       expect(mockPrisma.hopDong.create).toHaveBeenCalledWith({
-//         data: expect.objectContaining({ ...CREATE_DTO, hopDongId: expect.any(String) }),
-//       });
-//     });
+  it('lọc phòng còn sức chứa để tạo hợp đồng', async () => {
+    mockPrisma.phong.findMany.mockResolvedValue([
+      {
+        phongId: 1,
+        tenPhong: 'P101',
+        loaiPhong: { soNguoiToiDa: 2, giaTien: 2000000 },
+        HopDong: [{ hopDongId: 'HD1' }],
+      },
+      {
+        phongId: 2,
+        tenPhong: 'P102',
+        loaiPhong: { soNguoiToiDa: 1, giaTien: 2000000 },
+        HopDong: [{ hopDongId: 'HD2' }],
+      },
+    ]);
 
-//     it('gọi prisma.create đúng 1 lần', async () => {
-//       mockPrisma.hopDong.create.mockResolvedValue(MOCK_ITEM);
-//       await service.create(CREATE_DTO as any);
-//       expect(mockPrisma.hopDong.create).toHaveBeenCalledTimes(1);
-//     });
-//   });
+    await expect(service.getRoomsAvailableForContract()).resolves.toEqual([
+      { id: 1, tenPhong: 'P101', giaPhongGoc: 2000000 },
+    ]);
+  });
 
-//   // ── update ─────────────────────────────────────────────────────────
-//   describe('update()', () => {
-//     it('cập nhật và trả về record đã sửa', async () => {
-//       const updated = { ...MOCK_ITEM, ...UPDATE_DTO };
-//       mockPrisma.hopDong.findFirst.mockResolvedValue(MOCK_ITEM);
-//       mockPrisma.hopDong.update.mockResolvedValue(updated);
+  it('tạo hợp đồng trong transaction và cập nhật trạng thái liên quan', async () => {
+    mockPrisma.phong.findUnique.mockResolvedValue({ phongId: 2 });
+    mockPrisma.hopDong.count.mockResolvedValue(0);
+    mockPrisma.hopDong.findFirst.mockResolvedValue(null);
+    mockPrisma.hopDong.create.mockResolvedValue(MOCK_ITEM);
 
-//       const result = await service.update(VALID_ID as any, UPDATE_DTO as any);
-//       expect(result).toEqual(updated);
-//       expect(mockPrisma.hopDong.update).toHaveBeenCalledWith(
-//         expect.objectContaining({ where: { hopDongId: VALID_ID } }),
-//       );
-//     });
+    const result = await service.create(CREATE_DTO, ['a.jpg', 'b.jpg']);
 
-//     it('ném NotFoundException khi record không tồn tại', async () => {
-//       mockPrisma.hopDong.findFirst.mockResolvedValue(null);
-//       await expect(service.update(INVALID_ID as any, UPDATE_DTO as any))
-//         .rejects.toThrow(NotFoundException);
-//     });
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual(MOCK_ITEM);
+    expect(mockPrisma.hopDong.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        hopDongId: '202401-2-1',
+        anhHopDong: 'a.jpg,b.jpg',
+        trangThai: 1,
+      }),
+    });
+    expect(mockPrisma.phong.update).toHaveBeenCalledWith({
+      where: { phongId: 2 },
+      data: { trangThai: 1 },
+    });
+    expect(mockPrisma.nguoiThue.update).toHaveBeenCalledWith({
+      where: { idnt: 1 },
+      data: { trangThai: 1 },
+    });
+  });
 
-//     it('không gọi prisma.update khi record không tồn tại', async () => {
-//       mockPrisma.hopDong.findFirst.mockResolvedValue(null);
-//       try {
-//         await service.update(INVALID_ID as any, UPDATE_DTO as any);
-//       } catch {}
-//       expect(mockPrisma.hopDong.update).not.toHaveBeenCalled();
-//     });
-//   });
+  it('không tạo khi phòng không tồn tại hoặc hợp đồng bị trùng', async () => {
+    mockPrisma.phong.findUnique.mockResolvedValueOnce(null);
+    await expect(service.create(CREATE_DTO, [])).rejects.toThrow(
+      BadRequestException,
+    );
 
-//   // ── remove ─────────────────────────────────────────────────────────
-//   describe('remove()', () => {
-//     it('xóa mềm (set isDelete=true) và trả về record đã cập nhật', async () => {
-//       mockPrisma.hopDong.findFirst.mockResolvedValue(MOCK_ITEM);
-//       mockPrisma.hopDong.update.mockResolvedValue({ ...MOCK_ITEM, isDelete: true });
+    mockPrisma.phong.findUnique.mockResolvedValueOnce({ phongId: 2 });
+    mockPrisma.hopDong.count.mockResolvedValueOnce(1);
+    mockPrisma.hopDong.findFirst.mockResolvedValueOnce({ trangThai: 1 });
+    await expect(service.create(CREATE_DTO, [])).rejects.toThrow(
+      BadRequestException,
+    );
+  });
 
-//       const result = await service.remove(VALID_ID as any);
-//       expect(result).toEqual({ ...MOCK_ITEM, isDelete: true });
-//       expect(mockPrisma.hopDong.update).toHaveBeenCalledWith(
-//         { where: { hopDongId: VALID_ID }, data: { isDelete: true } },
-//       );
-//     });
+  it('cập nhật trực tiếp hợp đồng đang chờ hiệu lực', async () => {
+    mockPrisma.hopDong.findFirst.mockResolvedValue({
+      ...MOCK_ITEM,
+      trangThai: 0,
+    });
+    mockPrisma.hopDong.update.mockResolvedValue({
+      ...MOCK_ITEM,
+      trangThai: 0,
+      giaPhongThucTe: 2500000,
+    });
 
-//     it('ném NotFoundException khi record không tồn tại', async () => {
-//       mockPrisma.hopDong.findFirst.mockResolvedValue(null);
-//       await expect(service.remove(INVALID_ID as any)).rejects.toThrow(NotFoundException);
-//     });
+    await service.update(
+      MOCK_ITEM.hopDongId,
+      { phongId: 2, giaPhongThucTe: 2500000 },
+      [],
+    );
 
-//     it('không gọi prisma.update khi record không tồn tại', async () => {
-//       mockPrisma.hopDong.findFirst.mockResolvedValue(null);
-//       try {
-//         await service.remove(INVALID_ID as any);
-//       } catch {}
-//       expect(mockPrisma.hopDong.update).not.toHaveBeenCalled();
-//     });
-//   });
+    expect(mockPrisma.hopDong.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { hopDongId: MOCK_ITEM.hopDongId } }),
+    );
+  });
 
-//   // ── search ─────────────────────────────────────────────────────────
-//   describe('search()', () => {
-//     it('tìm theo mã (contains) và trả về { total, data }', async () => {
-//       mockPrisma.hopDong.findMany.mockResolvedValue([MOCK_ITEM]);
-//       mockPrisma.hopDong.count.mockResolvedValue(1);
+  it('không cho chuyển hợp đồng sang phòng khác', async () => {
+    mockPrisma.hopDong.findFirst.mockResolvedValue(MOCK_ITEM);
 
-//       const result = await service.search({ ma: 'HD00000001A' } as any);
+    await expect(
+      service.update(MOCK_ITEM.hopDongId, { phongId: 99 }, []),
+    ).rejects.toThrow(BadRequestException);
+  });
 
-//       expect(result).toEqual({ total: 1, data: [MOCK_ITEM] });
-//       expect(mockPrisma.hopDong.findMany).toHaveBeenCalledWith(
-//         expect.objectContaining({
-//           where: { isDelete: false, hopDongId: { contains: 'HD00000001A' } },
-//           orderBy: { hopDongId: 'desc' },
-//           take: 10,
-//           skip: 0,
-//         }),
-//       );
-//     });
+  it('trả chi tiết, xóa mềm và báo lỗi khi không tồn tại', async () => {
+    mockPrisma.hopDong.findFirst.mockResolvedValue(MOCK_ITEM);
+    mockPrisma.hopDong.update.mockResolvedValue({
+      ...MOCK_ITEM,
+      isDelete: true,
+    });
 
-//     it('áp dụng limit/offset/sortBy/sort tùy chỉnh', async () => {
-//       mockPrisma.hopDong.findMany.mockResolvedValue([]);
-//       mockPrisma.hopDong.count.mockResolvedValue(0);
+    await expect(service.findOne(MOCK_ITEM.hopDongId)).resolves.toEqual(
+      MOCK_ITEM,
+    );
+    await service.remove(MOCK_ITEM.hopDongId);
+    expect(mockPrisma.hopDong.update).toHaveBeenCalledWith({
+      where: { hopDongId: MOCK_ITEM.hopDongId },
+      data: { isDelete: true },
+    });
 
-//       await service.search({ limit: 5, offset: 10, sortBy: 'hopDongId', sort: 'asc' } as any);
+    mockPrisma.hopDong.findFirst.mockResolvedValue(null);
+    await expect(service.findOne('missing')).rejects.toThrow(NotFoundException);
+  });
 
-//       expect(mockPrisma.hopDong.findMany).toHaveBeenCalledWith(
-//         expect.objectContaining({ orderBy: { hopDongId: 'asc' }, take: 5, skip: 10 }),
-//       );
-//     });
+  it('tìm kiếm và phân trang hợp đồng', async () => {
+    mockPrisma.hopDong.findMany.mockResolvedValue([MOCK_ITEM]);
+    mockPrisma.hopDong.count.mockResolvedValue(1);
 
-//     it('không truyền ma thì chỉ lọc isDelete: false', async () => {
-//       mockPrisma.hopDong.findMany.mockResolvedValue([MOCK_ITEM]);
-//       mockPrisma.hopDong.count.mockResolvedValue(1);
+    await expect(
+      service.search({ ma: '202401', limit: 5, offset: 0 }),
+    ).resolves.toEqual({ total: 1, data: [MOCK_ITEM] });
 
-//       await service.search({} as any);
-
-//       expect(mockPrisma.hopDong.findMany).toHaveBeenCalledWith(
-//         expect.objectContaining({ where: { isDelete: false } }),
-//       );
-//     });
-//   });
-
-//   // ── getAllLoadingBalance ──────────────────────────────────────────
-//   describe('getAllLoadingBalance()', () => {
-//     it('lấy 15 phần tử đầu khi không truyền id', async () => {
-//       mockPrisma.hopDong.findMany.mockResolvedValue([MOCK_ITEM]);
-//       const result = await service.getAllLoadingBalance();
-//       expect(result).toEqual([MOCK_ITEM]);
-//       expect(mockPrisma.hopDong.findMany).toHaveBeenCalledWith(
-//         expect.objectContaining({
-//           where: { isDelete: false },
-//           orderBy: { hopDongId: 'asc' },
-//           take: 15,
-//         }),
-//       );
-//     });
-
-//     it('lấy 15 phần tử tiếp theo kể từ id truyền vào (cursor)', async () => {
-//       mockPrisma.hopDong.findMany.mockResolvedValue([MOCK_ITEM]);
-//       const result = await service.getAllLoadingBalance(VALID_ID as any);
-//       expect(result).toEqual([MOCK_ITEM]);
-//       expect(mockPrisma.hopDong.findMany).toHaveBeenCalledWith(
-//         expect.objectContaining({
-//           where: { isDelete: false },
-//           orderBy: { hopDongId: 'asc' },
-//           take: 15,
-//           skip: 1,
-//           cursor: { hopDongId: VALID_ID },
-//         }),
-//       );
-//     });
-
-//     it('trả về mảng rỗng khi không còn dữ liệu', async () => {
-//       mockPrisma.hopDong.findMany.mockResolvedValue([]);
-//       expect(await service.getAllLoadingBalance(INVALID_ID as any)).toEqual([]);
-//     });
-//   });
-
-// });
+    expect(mockPrisma.hopDong.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          isDelete: false,
+          hopDongId: { contains: '202401' },
+        },
+        take: 5,
+      }),
+    );
+  });
+});
