@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { PhuongTienService } from '../services/phuong-tien.service';
 import { CreatePhuongTienDto } from '../dto/create-phuong-tien.dto';
@@ -14,15 +14,16 @@ export class PhuongTienController {
   constructor(private readonly phuongTienService: PhuongTienService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Tạo Phương Tiện mới' })
-  create(@Body() dto: CreatePhuongTienDto) {
-    return this.phuongTienService.create(dto);
+  @ApiOperation({ summary: 'Thêm mới phương tiện' })
+  create(@Body() createDto: CreatePhuongTienDto) {
+    return this.phuongTienService.create(createDto);
   }
 
-  @Get()
-  @ApiOperation({ summary: 'Danh sách Phương Tiện' })
-  findAll() {
-    return this.phuongTienService.findAll();
+  @Get('nguoi-thue/:idnt')
+  @ApiOperation({ summary: 'Danh sách Phương Tiện theo id người thuê' })
+  @ApiParam({ name: 'idnt', description: 'ID Người Thuê' })
+  findAll(@Param('idnt', ParseIntPipe) idnt: number) {
+    return this.phuongTienService.findByNguoiThue(idnt);
   }
 
   @Get('search')
@@ -38,22 +39,20 @@ export class PhuongTienController {
     return this.phuongTienService.getAllLoadingBalance(id !== undefined ? Number(id) : undefined);
   }
 
-  @Get(':bienSo')
-  @ApiOperation({ summary: 'Chi tiết Phương Tiện' })
-  @ApiParam({ name: 'bienSo', description: 'ID của Phương Tiện' })
-  findOne(@Param('bienSo') id: string) {
-    return this.phuongTienService.findOne(id);
+  @Patch(':id')
+  @ApiOperation({ summary: 'Cập nhật thông tin phương tiện' })
+  @ApiParam({ name: 'id', description: 'ID phương tiện' })
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateDto: UpdatePhuongTienDto,
+  ) {
+    return this.phuongTienService.update(id, updateDto);
   }
 
-  @Patch(':bienSo')
-  @ApiOperation({ summary: 'Cập nhật Phương Tiện' })
-  update(@Param('bienSo') id: string, @Body() dto: UpdatePhuongTienDto) {
-    return this.phuongTienService.update(id, dto);
-  }
-
-  @Delete(':bienSo')
-  @ApiOperation({ summary: 'Xóa Phương Tiện' })
-  remove(@Param('bienSo') id: string) {
+@Delete(':id')
+  @ApiOperation({ summary: 'Xóa phương tiện' })
+  @ApiParam({ name: 'id', description: 'ID phương tiện cần xóa' })
+  remove(@Param('id', ParseIntPipe) id: number) {
     return this.phuongTienService.remove(id);
   }
-}
+ }

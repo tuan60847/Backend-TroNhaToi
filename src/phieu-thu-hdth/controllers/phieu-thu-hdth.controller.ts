@@ -5,13 +5,14 @@ import { CreatePhieuThuHdThDto } from '../dto/create-phieu-thu-hdth.dto';
 import { UpdatePhieuThuHdThDto } from '../dto/update-phieu-thu-hdth.dto';
 import { SearchPhieuThuHdThDto } from '../dto/search-phieu-thu-hdth.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { CreatePhieuThuTheoNguoiDto } from '../dto/create-phieu-thu-theo-nguoi.dto';
 
 @ApiTags('Phiếu Thu HĐ Tạp Hóa')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('phieu-thu-hdth')
 export class PhieuThuHdThController {
-  constructor(private readonly phieuThuHdThService: PhieuThuHdThService) {}
+  constructor(private readonly phieuThuHdThService: PhieuThuHdThService) { }
 
   @Post()
   @ApiOperation({ summary: 'Tạo Phiếu Thu HĐ Tạp Hóa mới' })
@@ -60,5 +61,13 @@ export class PhieuThuHdThController {
   @Get('hoa-don/:maHoaDon')
   findByMaHoaDon(@Param('maHoaDon') maHoaDon: string) {
     return this.phieuThuHdThService.findByMaHoaDon(maHoaDon);
+  }
+
+  @Post('nguoi-thue')
+  @ApiOperation({
+    summary: 'Thu tiền tạp hóa theo người thuê (FIFO)',
+  })
+  createTheoNguoi(@Body() dto: CreatePhieuThuTheoNguoiDto) {
+    return this.phieuThuHdThService.createPhieuThuTheoNguoi(dto);
   }
 }

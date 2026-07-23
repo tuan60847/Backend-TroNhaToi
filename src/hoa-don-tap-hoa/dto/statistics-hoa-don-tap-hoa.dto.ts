@@ -7,6 +7,7 @@ export class StatisticsHoaDonTapHoaDto {
     description: 'Năm cần thống kê, mặc định là năm hiện tại',
     example: 2026,
   })
+  
   @IsOptional()
   @Type(() => Number)
   @IsInt()

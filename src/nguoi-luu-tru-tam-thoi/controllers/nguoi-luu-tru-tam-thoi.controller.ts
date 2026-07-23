@@ -14,53 +14,37 @@ export class NguoiLuuTruTamThoiController {
   constructor(private readonly nguoiLuuTruTamThoiService: NguoiLuuTruTamThoiService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Tạo Người Lưu Trú Tạm Thời mới' })
+  @ApiOperation({ summary: 'Thêm người lưu trú tạm thời' })
   create(@Body() dto: CreateNguoiLuuTruTamThoiDto) {
-    return this.nguoiLuuTruTamThoiService.create(dto);
+    return this.nguoiLuuTruTamThoiService.taoNguoiLuuTru(dto);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Danh sách Người Lưu Trú Tạm Thời' })
-  findAll() {
-    return this.nguoiLuuTruTamThoiService.findAll();
-  }
-
-  @Get('search')
-  @ApiOperation({ summary: 'Tìm kiếm Người Lưu Trú Tạm Thời (theo họ tên/CCCD/SĐT/quê quán, có phân trang)' })
-  search(@Query() dto: SearchNguoiLuuTruTamThoiDto) {
-    return this.nguoiLuuTruTamThoiService.search(dto);
-  }
-
-  @Get('search-by-name')
-  @ApiOperation({ summary: 'Tìm kiếm Người Lưu Trú Tạm Thời theo tên' })
-  @ApiQuery({ name: 'ten', required: true, description: 'Tên cần tìm' })
-  searchByName(@Query('ten') ten: string) {
-    return this.nguoiLuuTruTamThoiService.searchByName(ten);
-  }
-
-  @Get('load-balance')
-  @ApiOperation({ summary: 'Lấy 15 phần tử (cuộn tải dần theo id)' })
-  @ApiQuery({ name: 'id', required: false, description: 'ID cuối cùng đã tải, bỏ trống để lấy 15 phần tử đầu' })
-  getAllLoadingBalance(@Query('id') id?: string) {
-    return this.nguoiLuuTruTamThoiService.getAllLoadingBalance(id !== undefined ? Number(id) : undefined);
+  @ApiOperation({ summary: 'Lấy danh sách lưu trú (có thể lọc theo idnt)' })
+  findAll(@Query('idnt') idnt?: string) {
+    return this.nguoiLuuTruTamThoiService.getDanhSachLuuTru(
+      idnt ? parseInt(idnt) : undefined,
+    );
   }
 
   @Get(':idtt')
-  @ApiOperation({ summary: 'Chi tiết Người Lưu Trú Tạm Thời' })
-  @ApiParam({ name: 'idtt', description: 'ID của Người Lưu Trú Tạm Thời' })
-  findOne(@Param('idtt', ParseIntPipe) id: number) {
-    return this.nguoiLuuTruTamThoiService.findOne(id);
+  @ApiOperation({ summary: 'Xem chi tiết lưu trú theo IDTT' })
+  findOne(@Param('idtt', ParseIntPipe) idtt: number) {
+    return this.nguoiLuuTruTamThoiService.getChiTietLuuTru(idtt);
   }
 
   @Patch(':idtt')
-  @ApiOperation({ summary: 'Cập nhật Người Lưu Trú Tạm Thời' })
-  update(@Param('idtt', ParseIntPipe) id: number, @Body() dto: UpdateNguoiLuuTruTamThoiDto) {
-    return this.nguoiLuuTruTamThoiService.update(id, dto);
+  @ApiOperation({ summary: 'Cập nhật thông tin người lưu trú' })
+  update(
+    @Param('idtt', ParseIntPipe) idtt: number,
+    @Body() dto: UpdateNguoiLuuTruTamThoiDto,
+  ) {
+    return this.nguoiLuuTruTamThoiService.capNhatLuuTru(idtt, dto);
   }
 
   @Delete(':idtt')
-  @ApiOperation({ summary: 'Xóa Người Lưu Trú Tạm Thời' })
-  remove(@Param('idtt', ParseIntPipe) id: number) {
-    return this.nguoiLuuTruTamThoiService.remove(id);
+  @ApiOperation({ summary: 'Xóa người lưu trú tạm thời' })
+  remove(@Param('idtt', ParseIntPipe) idtt: number) {
+    return this.nguoiLuuTruTamThoiService.xoaLuuTru(idtt);
   }
 }

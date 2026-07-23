@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards, Put } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { LoaiPhongService } from '../services/loai-phong.service';
 import { CreateLoaiPhongDto } from '../dto/create-loai-phong.dto';
@@ -12,10 +12,9 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 export class LoaiPhongController {
   constructor(private readonly loaiPhongService: LoaiPhongService) {}
 
-  @Post()
-  @ApiOperation({ summary: 'Tạo Loại Phòng mới' })
-  create(@Body() dto: CreateLoaiPhongDto) {
-    return this.loaiPhongService.create(dto);
+  @Post('createLoaiPhong')
+  async create(@Body() dto: CreateLoaiPhongDto) {
+    return await this.loaiPhongService.create(dto);
   }
 
   @Get('getAllLoaiPhong')
@@ -24,22 +23,20 @@ export class LoaiPhongController {
     return this.loaiPhongService.findAll();
   }
 
+   @Put('updateLoaiPhong')
+  async update(@Body() dto: UpdateLoaiPhongDto) {
+    return await this.loaiPhongService.update(dto);
+  }
+  @Delete('deleteLoaiPhong/:id')
+  @ApiOperation({ summary: 'Xóa Loại Phòng' })
+  async remove(@Param('id', ParseIntPipe) id: number) {
+    return await this.loaiPhongService.remove(id);
+  }
+
   @Get(':maLoaiPhong')
   @ApiOperation({ summary: 'Chi tiết Loại Phòng' })
   @ApiParam({ name: 'maLoaiPhong', description: 'ID của Loại Phòng' })
   findOne(@Param('maLoaiPhong', ParseIntPipe) id: number) {
     return this.loaiPhongService.findOne(id);
-  }
-
-  @Patch(':maLoaiPhong')
-  @ApiOperation({ summary: 'Cập nhật Loại Phòng' })
-  update(@Param('maLoaiPhong', ParseIntPipe) id: number, @Body() dto: UpdateLoaiPhongDto) {
-    return this.loaiPhongService.update(id, dto);
-  }
-
-  @Delete(':maLoaiPhong')
-  @ApiOperation({ summary: 'Xóa Loại Phòng' })
-  remove(@Param('maLoaiPhong', ParseIntPipe) id: number) {
-    return this.loaiPhongService.remove(id);
   }
 }

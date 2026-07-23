@@ -14,17 +14,17 @@ export class PhongService {
       {
         loaiPhong: true,
         HopDong: {
-          where: { isDelete: false, trangThai: 1 },
+          where: { isDelete: false, trangThai: { not: 2 } },
         }
       },
     });
     return dsPhong.map((p) => {
       const phong = p as any;
       let giahientai = 0;
-      if (phong.HopDong && phong.HopDong.length > 0) {
-        giahientai = phong.HopDong.reduce((sum, hd) => sum + Number(hd.giaPhongThucTe || 0), 0);
-      }
-      else {
+      const hdDangHieuLuc = phong.HopDong.filter((hd: any) => hd.trangThai === 1);
+      if (hdDangHieuLuc && hdDangHieuLuc.length > 0) {
+        giahientai = hdDangHieuLuc.reduce((sum, hd) => sum + Number(hd.giaPhongThucTe || 0), 0);
+      } else {
         giahientai = phong.loaiPhong?.giaTien || 0;
       }
       return {
@@ -147,6 +147,19 @@ export class PhongService {
 
   async remove(id: number) {
     await this.findOne(id);
+    const hopDongConHieuLuc = await this.prisma.hopDong.findFirst({
+      where: {
+        phongId: id,
+        isDelete: false,
+        trangThai: { not: 2 }, 
+      },
+    });
+    if (hopDongConHieuLuc) {
+      throw new BadRequestException(
+        'Không thể ẩn! Phòng đang có dữ liệu Hợp đồng liên kết (đang chờ hoặc đang hiệu lực). Vui lòng xử lý hợp đồng trước!'
+      );
+    }
+
     return this.prisma.phong.update({ where: { phongId: id }, data: { isDelete: true } });
   }
 }

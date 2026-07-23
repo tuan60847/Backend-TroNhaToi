@@ -4,6 +4,7 @@ import { CreateHopDongDto } from '../dto/create-hop-dong.dto';
 import { UpdateHopDongDto } from '../dto/update-hop-dong.dto';
 import { SearchHopDongDto } from '../dto/search-hop-dong.dto';
 import { generateId } from '../../common/utils/generate-id.util';
+import { GiaHanHopDongDto } from '../dto/renew-hop-dong.dto';
 
 @Injectable()
 export class HopDongService {
@@ -190,18 +191,49 @@ export class HopDongService {
       ? listUrlImage.join(',')
       : existingHopDong.anhHopDong ?? ''; // giữ ảnh cũ nếu không upload ảnh mới
 
-    return await this.prisma.hopDong.update({
-      where: { hopDongId: id },
-      data: {
-        ngayKy: dto.ngayKy ? new Date(dto.ngayKy) : undefined,
-        ngayHetHan: dto.ngayHetHan ? new Date(dto.ngayHetHan) : undefined,
-        tienCoc: dto.tienCoc,
-        giaPhongThucTe: dto.giaPhongThucTe,
-        ghiChu: dto.ghiChu,
-        anhHopDong: chuoiImageConTract,
-      },
+    //Tính toán lại trạng thái dựa vào ngayKy mới
+    const homNay = new Date();
+    homNay.setHours(0, 0, 0, 0);
+
+    const ngayKyCheck = dto.ngayKy ? new Date(dto.ngayKy) : existingHopDong.ngayKy;
+    const ngayKyReset = new Date(ngayKyCheck);
+    ngayKyReset.setHours(0, 0, 0, 0);
+
+    let newTrangThai = 0; // Mặc định là chờ hiệu lực
+    if (ngayKyReset <= homNay) {
+      newTrangThai = 1; // Chuyển sang Đang hiệu lực nếu ngày ký <= hôm nay
+    }
+
+    return await this.prisma.$transaction(async (prisma) => {
+      const updatedHD = await prisma.hopDong.update({
+        where: { hopDongId: id },
+        data: {
+          ngayKy: dto.ngayKy ? new Date(dto.ngayKy) : undefined,
+          ngayHetHan: dto.ngayHetHan ? new Date(dto.ngayHetHan) : undefined,
+          tienCoc: dto.tienCoc,
+          giaPhongThucTe: dto.giaPhongThucTe,
+          ghiChu: dto.ghiChu,
+          anhHopDong: chuoiImageConTract,
+          trangThai: newTrangThai,
+        },
+      });
+
+      //BẮT BUỘC CÓ: Kích hoạt Phòng & Người thuê lên 1 nếu HĐ vừa được chuyển sang Đang hiệu lực
+      if (newTrangThai === 1) {
+        await prisma.phong.update({
+          where: { phongId: existingHopDong.phongId },
+          data: { trangThai: 1 },
+        });
+
+        await prisma.nguoiThue.update({
+          where: { idnt: existingHopDong.idnt },
+          data: { trangThai: 1 },
+        });
+      }
+
+      return updatedHD;
     });
-  } 
+  }
   // Nếu hợp đồng đã hết hiệu lực thì không cho renew nữa
 if (existingHopDong.trangThai === 2) {
   throw new BadRequestException(
@@ -217,6 +249,128 @@ if (existingHopDong.trangThai === 2) {
       });
      return await this._createHopDong(prisma, dto as CreateHopDongDto, listUrlImage); // Tạo hợp đồng mới với thông tin mới
     });
+  }
+
+
+  // Lấy danh sách lịch sử hợp đồng đã kết thúc của một phòng
+  async getLichSuThuePhong(phongId : number) {
+    const phongExists = await this.prisma.phong.findUnique({
+      where: { phongId: phongId },
+    });
+    if (!phongExists) {
+      throw new NotFoundException(`Không tìm thấy phòng với ID ${phongId}`);
+    }
+    return await this.prisma.hopDong.findMany({
+      where: {
+        phongId: phongId,
+        trangThai: 2, // 2: đã kết thúc
+      },
+      include: {
+        nguoithue: {
+          select:{
+            hoTen: true,
+            sdt: true,
+          }
+        }
+      },
+      orderBy: {
+        ngayHetHan: 'desc', // Hợp đồng nào mới kết thúc gần đây nhất thì hiện lên đầu
+      },
+    });
+  }
+ 
+  async giaHan(id: string, dto: GiaHanHopDongDto, listUrlImage: string[]) {
+    //Kiểm tra sự tồn tại của hợp đồng
+    const existingHopDong = await this.prisma.hopDong.findFirst({
+      where: { hopDongId: id, isDelete: false },
+    });
+
+    if (!existingHopDong) {
+      throw new NotFoundException(`Hợp đồng với ID ${id} không tồn tại`);
+    }
+
+    //Chặn gia hạn nếu hợp đồng chưa có hiệu lực (trangThai = 0)
+    if (existingHopDong.trangThai === 0) {
+      throw new BadRequestException(
+        'Hợp đồng chưa có hiệu lực, không thể gia hạn. Vui lòng chọn "Cập nhật hợp đồng"!',
+      );
+    }
+
+    //Chặn gia hạn nếu hợp đồng đã kết thúc (trangThai = 2)
+    if (existingHopDong.trangThai === 2) {
+      throw new BadRequestException(
+        'Hợp đồng này đã kết thúc, không thể gia hạn. Vui lòng tạo hợp đồng mới!',
+      );
+    }
+
+    //Check điều kiện thời gian: CHỈ CHO GIA HẠN KHI CÒN <= 30 NGÀY
+    const homNay = new Date();
+    homNay.setHours(0, 0, 0, 0);
+
+    const ngayHetHanCu = new Date(existingHopDong.ngayHetHan);
+    ngayHetHanCu.setHours(0, 0, 0, 0);
+
+    // Tính số ngày còn lại đến hạn
+    const diffTime = ngayHetHanCu.getTime() - homNay.getTime();
+    const soNgayConLai = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    // Nếu còn hơn 30 ngày mới tới hạn -> Chặn
+    if (soNgayConLai > 30) {
+      throw new BadRequestException(
+        `Hợp đồng vẫn còn ${soNgayConLai} ngày nữa mới hết hạn. Chỉ được gia hạn khi còn từ 30 ngày trở xuống!`,
+      );
+    }
+
+    //Ngày hết hạn mới phải LỚN HƠN ngày hết hạn hiện tại
+   const ngayOnly = dto.ngayHetHanMoi.split('T')[0];
+const stringNgay = `${ngayOnly}T00:00:00.000Z`;
+
+const ngayHetHanMoi = new Date(stringNgay);
+
+
+    if (ngayHetHanMoi <= ngayHetHanCu) {
+      throw new BadRequestException(
+        'Ngày hết hạn mới phải lớn hơn ngày hết hạn hiện tại của hợp đồng!',
+      );
+    }
+
+    //CỘNG DỒN ảnh mới vào danh sách ảnh cũ
+    let chuoiAnhUpdated = existingHopDong.anhHopDong ?? '';
+    if (listUrlImage.length > 0) {
+      const chuoiAnhMoi = listUrlImage.join(',');
+      chuoiAnhUpdated = chuoiAnhUpdated
+        ? `${chuoiAnhUpdated},${chuoiAnhMoi}`
+        : chuoiAnhMoi;
+    }
+
+    const ghiChuCapNhat = dto.ghiChu ?? existingHopDong.ghiChu;
+
+    
+    const updatedHopDong = await this.prisma.hopDong.update({
+      where: { hopDongId: id },
+      data: {
+        ngayHetHan: ngayHetHanMoi,
+        ghiChu: ghiChuCapNhat,
+        anhHopDong: chuoiAnhUpdated,
+      },
+      include: {
+        phong: {
+          select: { tenPhong: true },
+        },
+        nguoithue: {
+          select: { hoTen: true },
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Gia hạn hợp đồng thành công!',
+      data: {
+        ...updatedHopDong,
+        anhHopDong: updatedHopDong.anhHopDong ? updatedHopDong.anhHopDong.split(',') : [],
+      },
+    };
   }
 //--------------------------------------------------------------------------------
  async findOne(id: string) {

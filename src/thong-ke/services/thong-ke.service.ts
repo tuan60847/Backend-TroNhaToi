@@ -5,9 +5,9 @@ import { ThongKeQueryDto } from "../dto/thong-ke-query.dto";
 
 @Injectable()
 export class ThongKeService {
-  private readonly snapshotTtlMs = 5 * 60 * 1000;
+  private readonly snapshotTtlMs = 1 * 10 * 1000;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * ==========================================
@@ -113,13 +113,13 @@ export class ThongKeService {
           isDelete: false,
           ...(thangNam
             ? {
-                thangNam,
-              }
+              thangNam,
+            }
             : {
-                thangNam: {
-                  endsWith: `${dto.nam}`,
-                },
-              }),
+              thangNam: {
+                endsWith: `${dto.nam}`,
+              },
+            }),
         },
       }),
 
@@ -131,13 +131,13 @@ export class ThongKeService {
           isDelete: false,
           ...(thangNam
             ? {
-                thangNam,
-              }
+              thangNam,
+            }
             : {
-                thangNam: {
-                  endsWith: `${dto.nam}`,
-                },
-              }),
+              thangNam: {
+                endsWith: `${dto.nam}`,
+              },
+            }),
         },
       }),
 
@@ -241,22 +241,46 @@ export class ThongKeService {
   private async getTongChiPhi(dto: ThongKeQueryDto) {
     const { from, to } = this.getDateRange(dto);
 
-    const hoaDonSuaChua = await this.prisma.hoaDonSuaChua.aggregate({
-      _sum: {
-        giaTien: true,
-      },
-
-      where: {
-        isDelete: false,
-        ngayLapHoaDonSc: {
-          gte: from,
-          lte: to,
+    const [hoaDonSuaChua, lichSuMuaThietBi] = await Promise.all([
+      this.prisma.hoaDonSuaChua.aggregate({
+        _sum: {
+          giaTien: true,
         },
-      },
-    });
+        where: {
+          isDelete: false,
+          ngayLapHoaDonSc: {
+            gte: from,
+            lte: to,
+          },
+        },
+      }),
+      this.prisma.lichSuMuaThietBi.findMany({
+        where: {
+          isDelete: false,
+          ngayMua: {
+            gte: from,
+            lte: to,
+          },
+        },
+        select: {
+          soLuong: true,
+          donGia: true,
+        },
+      }),
+    ]);
+
+
+    const tongTienMuaThietBi = lichSuMuaThietBi.reduce(
+      (sum, r) => sum + r.soLuong * this.toNumber(r.donGia),
+      0,
+    );
+
+    const tongTienSuaChua = this.toNumber(hoaDonSuaChua._sum.giaTien) + tongTienMuaThietBi;
 
     return {
-      tongChiPhi: this.toNumber(hoaDonSuaChua._sum.giaTien),
+      tongChiPhi: tongTienSuaChua + tongTienMuaThietBi,
+      tongTienSuaChua,
+      tongTienMuaThietBi,
     };
   }
 

@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Thiết Bị')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+//@UseGuards(JwtAuthGuard)
 @Controller('thiet-bi')
 export class ThietBiController {
   constructor(private readonly thietBiService: ThietBiService) {}
@@ -62,5 +62,11 @@ export class ThietBiController {
   @ApiOperation({ summary: 'Xóa Thiết Bị' })
   remove(@Param('thietBiId', ParseIntPipe) id: number) {
     return this.thietBiService.remove(id);
+  }
+
+  @Get('phong/:phongId')
+  @ApiOperation({ summary: 'Lấy ds thiết bị của phòng' })
+  async getThietBiByPhongId(@Param('phongId', ParseIntPipe) phongId: number) {
+    return this.thietBiService.getThietBiByPhongId(phongId);
   }
 }

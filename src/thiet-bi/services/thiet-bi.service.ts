@@ -6,7 +6,7 @@ import { SearchThietBiDto } from '../dto/search-thiet-bi.dto';
 
 @Injectable()
 export class ThietBiService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   private transform(raw: any) {
     const { thietBiId, isDelete, ...rest } = raw;
@@ -14,8 +14,49 @@ export class ThietBiService {
   }
 
   async findAll() {
-    const rows = await this.prisma.thietBi.findMany({ where: { isDelete: false } });
-    return rows.map((r) => this.transform(r));
+    const rows = await this.prisma.thietBi.findMany({
+      where: {
+        isDelete: false,
+      },
+      include: {
+        lichSuMua: {
+          where: {
+            isDelete: false,
+          },
+          select: {
+            soLuong: true,
+          },
+        },
+        laprap: {
+          where: {
+            isDelete: false,
+          },
+          select: {
+            soLuong: true,
+          },
+        },
+      },
+    });
+
+    return rows.map((r) => {
+      const soLuongMua = r.lichSuMua.reduce(
+        (tong, item) => tong + (item.soLuong ?? 0),
+        0,
+      );
+
+      const soLuongLapDat = r.laprap.reduce(
+        (tong, item) => tong + (item.soLuong ?? 0),
+        0,
+      );
+
+      const { lichSuMua, laprap, ...thietBi } = r;
+
+      return {
+        ...this.transform(thietBi),
+        soLuongMua,
+        soLuongLapDat,
+      };
+    });
   }
 
   async findOne(id: number) {
@@ -82,6 +123,43 @@ export class ThietBiService {
         : {}),
     });
     return rows.map((r) => this.transform(r));
+  }
+
+
+  //LẤY DANH SÁCH LẮP RÁP THIẾT BỊ THEO PHÒNG
+  async getThietBiByPhongId(phongId: number) {
+   
+    const phong = await this.prisma.phong.findFirst({
+      where: { phongId, isDelete: false },
+    });
+
+    if (!phong) {
+      throw new NotFoundException(`Phòng với ID ${phongId} không tồn tại`);
+    }
+
+    const dsLapRap = await this.prisma.lapRap.findMany({
+      where: {
+        phongId,
+        isDelete: false,
+        thietbi: {
+          isDelete: false, // Chỉ lấy thiết bị chưa bị xóa
+        },
+      },
+      include: {
+        thietbi: true,
+      },
+      orderBy: {
+        id: 'desc',
+      },
+    });
+
+    return dsLapRap.map((item) => {
+      const { thietbi, isDelete, ...lapRapRest } = item;
+      return {
+        ...lapRapRest,
+        thietBi: thietbi ? this.transform(thietbi) : null,
+      };
+    });
   }
 
 }

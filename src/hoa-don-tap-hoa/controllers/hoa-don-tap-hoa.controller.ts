@@ -12,7 +12,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 @UseGuards(JwtAuthGuard)
 @Controller('hoa-don-tap-hoa')
 export class HoaDonTapHoaController {
-  constructor(private readonly hoaDonTapHoaService: HoaDonTapHoaService) {}
+  constructor(private readonly hoaDonTapHoaService: HoaDonTapHoaService) { }
 
   @Post()
   @ApiOperation({ summary: 'Tạo Hóa Đơn Tạp Hóa mới' })
@@ -23,7 +23,9 @@ export class HoaDonTapHoaController {
   @Get('findAll')
   @ApiOperation({ summary: 'Danh sách Hóa Đơn Tạp Hóa' })
   findAll() {
-    return this.hoaDonTapHoaService.findAll();
+    //Test 
+    //return this.hoaDonTapHoaService.findAll();
+    return this.hoaDonTapHoaService.findDSHangHoaModel();
   }
 
   @Get('search')
@@ -33,9 +35,7 @@ export class HoaDonTapHoaController {
   }
 
   @Get('statistics')
-  @ApiOperation({
-    summary: 'Thống kê Hóa Đơn Tạp Hóa theo năm (doanh thu, đã thu, còn nợ)',
-  })
+  @ApiOperation({ summary: 'Thống kê Hóa Đơn Tạp Hóa (tổng doanh thu, số hóa đơn theo tháng)' })
   statistics(@Query() dto: StatisticsHoaDonTapHoaDto) {
     return this.hoaDonTapHoaService.statistics(dto);
   }

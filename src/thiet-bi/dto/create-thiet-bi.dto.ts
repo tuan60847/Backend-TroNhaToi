@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsNumber, IsOptional, IsString } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsInt, IsOptional, IsString } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateThietBiDto {
@@ -13,21 +13,10 @@ export class CreateThietBiDto {
   @IsString()
   loai?: string;
 
-  @ApiPropertyOptional({ description: 'Giá trị' })
-  @IsOptional()
-  @IsNumber()
-  giaTri?: number;
-
-  @ApiPropertyOptional({ description: 'Ngày mua (YYYY-MM-DD)' })
-  @IsOptional()
-  @IsString()
-  ngayMua?: string;
-
   @ApiPropertyOptional({ description: 'Trạng thái' })
   @IsOptional()
   @IsInt()
   trangThai?: number;
-
 }
 
 export class UpdateThietBiDto extends PartialType(CreateThietBiDto) {}

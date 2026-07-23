@@ -17,7 +17,7 @@ model LoaiPhong {
   dienTich     Float?   @db.Float
   isMayLanh    Boolean?
   soNguoiToiDa Int?
-  giaTien      Decimal? @db.Decimal(10, 2)
+  giaTien      Decimal? @db.Decimal(15, 2)
   isDelete     Boolean  @default(false)
   phong        Phong[]
 
@@ -37,6 +37,7 @@ model Phong {
   LapRap             LapRap[]
   SuaChua            SuaChua[]
   NguoiLuuTruTamThoi NguoiLuuTruTamThoi[]
+  PhuongTien         PhuongTien[]
 
   @@index([maLoaiPhong], map: "maLoaiPhong")
   @@map("phong")
@@ -83,16 +84,27 @@ model HopDong {
 }
 
 model DienNuoc {
-  idDienNuoc String  @id @db.Char(12)
-  phongId    Int?    @map("PhongID")
-  thangNam   String? @db.VarChar(20)
-  chiSoDien  Int?
-  chiSoNuoc  Int?
-  TrangThai  Int     @default(0)
-  isDelete   Boolean @default(false)
-  phong      Phong?  @relation(fields: [phongId], references: [phongId], onDelete: NoAction, onUpdate: NoAction, map: "diennuoc_ibfk_1")
+  phongId      Int      @map("PhongID")
+  thangNam     String   @db.VarChar(20) 
+  lanGhi       Int      @default(1)  
+  
+  chiSoDienCu  Int      @default(0)
+  chiSoDienMoi Int      @default(0)
+  chiSoNuocCu  Int      @default(0)
+  chiSoNuocMoi Int      @default(0)
+  
+  anhDienCu    String?  @db.VarChar(255)
+  anhDienMoi   String?  @db.VarChar(255)
+  anhNuocCu    String?  @db.VarChar(255)
+  anhNuocMoi   String?  @db.VarChar(255)
+  
+  ngayGhi      DateTime @default(now())
+  TrangThai    Int      @default(0)     // 0: Chưa tạo hóa đơn, 1: Đã tạo hóa đơn
+    
+  phong        Phong    @relation(fields: [phongId], references: [phongId], onDelete: Cascade, onUpdate: NoAction, map: "diennuoc_ibfk_1")
 
-  @@index([phongId], map: "PhongID")
+  //Bộ Khóa chính
+  @@id([phongId, thangNam, lanGhi])
   @@map("diennuoc")
 }
 
@@ -128,11 +140,13 @@ model PhuongTien {
   hangXe      String?       @db.VarChar(100)
   mauSac      String?       @db.VarChar(100)
   idnt        Int?          @map("IDNT")
+  phongId     Int?          @map("PhongID")
   loaixe      Int           @default(0)
   SoTien      Float
   isDelete    Boolean       @default(false)
   hoadonguixe HoaDonGuiXe[]
   nguoithue   NguoiThue?    @relation(fields: [idnt], references: [idnt], onDelete: Restrict, onUpdate: Restrict, map: "PhuongTien_FK")
+  phong       Phong?        @relation(fields: [phongId], references: [phongId], onDelete: SetNull, onUpdate: Restrict, map: "PhuongTien_Phong_FK")
 
   @@index([idnt], map: "IDNT")
   @@map("phuongtien")
@@ -207,14 +221,28 @@ model ThietBi {
   thietBiId  Int       @id @default(autoincrement()) @map("thietBiID")
   tenThietBi String?   @db.VarChar(255)
   loai       String?   @db.VarChar(100)
-  giaTri     Decimal?  @db.Decimal(10, 2)
-  ngayMua    DateTime? @db.Date
   trangThai  Int?      @default(0)
   isDelete   Boolean   @default(false)
   laprap     LapRap[]
   suachua    SuaChua[]
+  lichSuMua  LichSuMuaThietBi[]
 
   @@map("thietbi")
+}
+
+model LichSuMuaThietBi {
+  id        Int       @id @default(autoincrement())
+  thietBiId Int       @map("thietBiID")
+  soLuong   Int       @default(0)
+  donGia    Decimal   @db.Decimal(10, 2)
+  ngayMua   DateTime  @db.Date
+  ghiChu    String?   @db.VarChar(255)
+  isDelete  Boolean   @default(false)
+
+  thietbi   ThietBi   @relation(fields: [thietBiId], references: [thietBiId], onDelete: Restrict, onUpdate: Restrict, map: "LichSuMua_FK1")
+
+  @@index([thietBiId], map: "thietBiID")
+  @@map("lichsumuathietbi")
 }
 
 model LapRap {
@@ -264,12 +292,15 @@ model HoaDonSuaChua {
 model NguoiLuuTruTamThoi {
   idtt      Int       @id @default(autoincrement()) @map("IDTT")
   hoTen     String?   @db.VarChar(255)
+  moiQuanHe String?   @map("MoiQuanHe") @db.VarChar(100)
   cccd      String?   @map("CCCD") @db.VarChar(50)
-  ngaySinh  DateTime? @db.Date
   sdt       String?   @map("SDT") @db.VarChar(20)
-  queQuan   String?   @db.VarChar(255)
+  
   phongId   Int?      @map("PhongID")
   IDNT      Int
+  ngayDen   DateTime?  @map("NgayDen") @db.Date
+  ngayVe    DateTime?  @map("NgayVe") @db.Date
+
   isDelete  Boolean   @default(false)
   phong     Phong?    @relation(fields: [phongId], references: [phongId], onDelete: Restrict, onUpdate: Restrict, map: "NguoiLuuTruTamThoi_FK2")
   nguoithue NguoiThue @relation(fields: [IDNT], references: [idnt], onUpdate: Restrict, map: "NguoiLuuTruTamThoi_Fk1")
@@ -316,3 +347,12 @@ model ThongKeSnapshot {
   @@index([nam, thang])
   @@map("thongkesnapshot")
 }
+model CauHinhGia {
+  id        Int      @id @default(autoincrement()) @map("id")
+  giaDien   Float    @default(3500) @map("gia_dien")
+  giaNuoc   Float    @default(15000) @map("gia_nuoc")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("cauhinhgia")
+}
+

@@ -19,12 +19,21 @@ export class CreatePhuongTienDto {
   @ApiPropertyOptional({ description: 'Màu sắc' })
   @IsOptional()
   @IsString()
+  
   mauSac?: string;
+  @ApiProperty({ example: 0, description: 'Loại xe (0: Xe máy, 1: Ô tô, 2: Xe đạp)' })
+  @IsInt()
+  loaixe: number;
 
   @ApiPropertyOptional({ description: 'ID người thuê' })
   @IsOptional()
   @IsInt()
   idnt?: number;
+
+  @ApiPropertyOptional({ example: 102, description: 'ID Phòng liên quan (có thể null)' })
+  @IsInt()
+  @IsOptional()
+  phongId?: number;
 
 }
 

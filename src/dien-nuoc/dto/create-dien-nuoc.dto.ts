@@ -1,10 +1,11 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import { IsInt, IsOptional, IsString } from 'class-validator';
-import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateDienNuocDto {
   @ApiPropertyOptional({ description: 'ID phòng' })
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   phongId?: number;
 
@@ -13,16 +14,54 @@ export class CreateDienNuocDto {
   @IsString()
   thangNam?: string;
 
-  @ApiPropertyOptional({ description: 'Chỉ số điện' })
+  @ApiPropertyOptional({ description: 'Chỉ số điện cũ' })
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
-  chiSoDien?: number;
+  chiSoDienCu: number;
 
-  @ApiPropertyOptional({ description: 'Chỉ số nước' })
+  @ApiPropertyOptional({ description: 'Chỉ số điện mới' })
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
-  chiSoNuoc?: number;
+  chiSoDienMoi: number;
 
+  @ApiPropertyOptional({ description: 'Chỉ số nước cũ' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  chiSoNuocCu: number;
+
+  @ApiPropertyOptional({ description: 'Chỉ số nước mới' })
+  @IsOptional()
+ @Type(() => Number)
+  @IsInt()
+  chiSoNuocMoi: number;
+
+  @ApiPropertyOptional({ description: 'Link ảnh điện cũ (Dùng khi thay công tơ)' })
+  @IsOptional()
+  @IsString()
+  anhDienCu?: string;
+
+  @ApiPropertyOptional({ description: 'Link ảnh điện mới' })
+  @IsOptional()
+  @IsString()
+  anhDienMoi?: string;
+
+  @ApiPropertyOptional({ description: 'Link ảnh nước cũ (Dùng khi thay công tơ)' })
+  @IsOptional()
+  @IsString()
+  anhNuocCu?: string;
+
+  @ApiPropertyOptional({ description: 'Link ảnh nước mới' })
+  @IsOptional()
+  @IsString()
+  anhNuocMoi?: string;
+
+  @ApiPropertyOptional({ description: 'Ngày ghi chỉ số thực tế' })
+  @IsOptional()
+  @IsString()
+  ngayGhi?: string;
 }
 
 export class UpdateDienNuocDto extends PartialType(CreateDienNuocDto) {}

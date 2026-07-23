@@ -1,41 +1,47 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsString } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateNguoiLuuTruTamThoiDto {
-  @ApiProperty({ description: 'ID người thuê' })
+  @ApiProperty({ description: 'ID người thuê bảo lãnh' })
   @IsInt()
+  @IsNotEmpty()
   IDNT: number;
 
-  @ApiPropertyOptional({ description: 'Họ tên' })
+  @ApiPropertyOptional({ description: 'ID phòng lưu trú' })
+  @IsOptional()
+  @IsInt()
+  phongId?: number;
+
+  @ApiPropertyOptional({ description: 'Họ và tên' })
   @IsOptional()
   @IsString()
   hoTen?: string;
 
-  @ApiPropertyOptional({ description: 'Số CCCD' })
+  @ApiPropertyOptional({ description: 'Mối quan hệ (Ba, mẹ, anh, chị, bạn...)' })
+  @IsOptional()
+  @IsString()
+  moiQuanHe?: string;
+
+  @ApiPropertyOptional({ description: 'Số CCCD/CMND' })
   @IsOptional()
   @IsString()
   cccd?: string;
-
-  @ApiPropertyOptional({ description: 'Ngày sinh (YYYY-MM-DD)' })
-  @IsOptional()
-  @IsString()
-  ngaySinh?: string;
 
   @ApiPropertyOptional({ description: 'Số điện thoại' })
   @IsOptional()
   @IsString()
   sdt?: string;
 
-  @ApiPropertyOptional({ description: 'Quê quán' })
+  @ApiPropertyOptional({ description: 'Ngày đến (YYYY-MM-DD)' })
   @IsOptional()
   @IsString()
-  queQuan?: string;
+  ngayDen?: string;
 
-  @ApiPropertyOptional({ description: 'ID phòng' })
+  @ApiPropertyOptional({ description: 'Ngày về (YYYY-MM-DD)' })
   @IsOptional()
-  @IsInt()
-  phongId?: number;
+  @IsString()
+  ngayVe?: string;
 
 }
 

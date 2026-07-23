@@ -16,8 +16,16 @@ export class LapRapController {
   @Post()
   @ApiOperation({ summary: 'Tạo Lắp Ráp Thiết Bị mới' })
   create(@Body() dto: CreateLapRapDto) {
-    return this.lapRapService.create(dto);
+   return this.lapRapService.taoLapRap(dto);
   }
+  @Patch(':id')
+async capNhatLapRap(
+  @Param('id', ParseIntPipe) id: number,
+  @Body('soLuong', ParseIntPipe) soLuong: number,
+) {
+  return this.lapRapService.capNhatLapRap(id, soLuong);
+}
+  //---
 
   @Get()
   @ApiOperation({ summary: 'Danh sách Lắp Ráp Thiết Bị' })
