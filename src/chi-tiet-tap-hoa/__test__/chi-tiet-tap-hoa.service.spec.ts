@@ -2,6 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ChiTietTapHoaService } from '../services/chi-tiet-tap-hoa.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotFoundException } from '@nestjs/common';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
+
+const mockThongKeSnapshot = { invalidateAll: jest.fn() };
 
 // ─── Mock Prisma ─────────────────────────────────────────────────────
 const mockPrisma = {
@@ -12,6 +15,7 @@ const mockPrisma = {
     update:    jest.fn(),
     delete:    jest.fn(),
   },
+  $transaction: jest.fn((cb: any) => cb(mockPrisma)),
 };
 
 // ─── Fixtures ────────────────────────────────────────────────────────
@@ -29,6 +33,7 @@ describe('ChiTietTapHoaService', () => {
       providers: [
         ChiTietTapHoaService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: ThongKeSnapshotService, useValue: mockThongKeSnapshot },
       ],
     }).compile();
 
@@ -88,6 +93,8 @@ describe('ChiTietTapHoaService', () => {
       expect(mockPrisma.chiTietTapHoa.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: CREATE_DTO }),
       );
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('gọi prisma.create đúng 1 lần', async () => {
@@ -109,6 +116,8 @@ describe('ChiTietTapHoaService', () => {
       expect(mockPrisma.chiTietTapHoa.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { maChiTietHoaDon: VALID_ID } }),
       );
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {
@@ -137,6 +146,8 @@ describe('ChiTietTapHoaService', () => {
       expect(mockPrisma.chiTietTapHoa.delete).toHaveBeenCalledWith(
         { where: { maChiTietHoaDon: VALID_ID } },
       );
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {

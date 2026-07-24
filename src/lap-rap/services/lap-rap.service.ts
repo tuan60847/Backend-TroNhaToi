@@ -3,10 +3,14 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateLapRapDto } from '../dto/create-lap-rap.dto';
 import { UpdateLapRapDto } from '../dto/update-lap-rap.dto';
 import { SearchLapRapDto } from '../dto/search-lap-rap.dto';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
 
 @Injectable()
 export class LapRapService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private thongKeSnapshotService: ThongKeSnapshotService,
+  ) {}
 
   async taoLapRap(dto: CreateLapRapDto) {
     const phong = await this.prisma.phong.findFirst({
@@ -52,16 +56,20 @@ export class LapRapService {
         `Số lượng thiết bị trong kho không đủ! (Kho còn: ${conLaiText}, Yêu cầu: ${soLuongCanLap})`,
       );
     }
-    const lapRapMoi = await this.prisma.lapRap.create({
-      data: {
-        phongId: dto.phongId,
-        thietBiId: dto.thietBiId,
-        soLuong: dto.soLuong ?? 1,
-        ngayLap: dto.ngayLap ? new Date(dto.ngayLap) : new Date(),
-      },
-      include: {
-        thietbi: true,
-      },
+    const lapRapMoi = await this.prisma.$transaction(async (tx) => {
+      const result = await tx.lapRap.create({
+        data: {
+          phongId: dto.phongId,
+          thietBiId: dto.thietBiId,
+          soLuong: dto.soLuong ?? 1,
+          ngayLap: dto.ngayLap ? new Date(dto.ngayLap) : new Date(),
+        },
+        include: {
+          thietbi: true,
+        },
+      });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return result;
     });
 
     const { thietbi, isDelete, ...lapRapRest } = lapRapMoi;
@@ -99,9 +107,13 @@ async capNhatLapRap(id: number, soLuongMoi: number) {
 
   // TH1: Số lượng mới <= 0 -> Đánh dấu xóa
   if (soLuongMoi <= 0) {
-    return await this.prisma.lapRap.update({
-      where: { id },
-      data: { isDelete: true },
+    return this.prisma.$transaction(async (tx) => {
+      const removed = await tx.lapRap.update({
+        where: { id },
+        data: { isDelete: true },
+      });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return removed;
     });
   }
 
@@ -123,10 +135,14 @@ async capNhatLapRap(id: number, soLuongMoi: number) {
   }
 
   // TH3: Cập nhật trực tiếp số lượng mới vào đúng ID bản ghi cũ
-  const updated = await this.prisma.lapRap.update({
-    where: { id },
-    data: { soLuong: soLuongMoi },
-    include: { thietbi: true },
+  const updated = await this.prisma.$transaction(async (tx) => {
+    const result = await tx.lapRap.update({
+      where: { id },
+      data: { soLuong: soLuongMoi },
+      include: { thietbi: true },
+    });
+    await this.thongKeSnapshotService.invalidateAll(tx);
+    return result;
   });
 
   const { thietbi, isDelete, ...lapRapRest } = updated;
@@ -154,18 +170,36 @@ async capNhatLapRap(id: number, soLuongMoi: number) {
     return item;
   }
 
-  create(dto: CreateLapRapDto) {
-    return this.prisma.lapRap.create({ data: dto as any });
+  async create(dto: CreateLapRapDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const created = await tx.lapRap.create({ data: dto as any });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return created;
+    });
   }
 
   async update(id: number, dto: UpdateLapRapDto) {
     await this.findOne(id);
-    return this.prisma.lapRap.update({ where: { id: id }, data: dto as any });
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.lapRap.update({
+        where: { id: id },
+        data: dto as any,
+      });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return updated;
+    });
   }
 
   async remove(id: number) {
     await this.findOne(id);
-    return this.prisma.lapRap.update({ where: { id: id }, data: { isDelete: true } });
+    return this.prisma.$transaction(async (tx) => {
+      const removed = await tx.lapRap.update({
+        where: { id: id },
+        data: { isDelete: true },
+      });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return removed;
+    });
   }
   async search(req: SearchLapRapDto) {
     const { phongId, thietBiId, limit = 10, offset = 0, sortBy = 'id', sort = 'desc' } = req;

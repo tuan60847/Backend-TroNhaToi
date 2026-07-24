@@ -2,8 +2,10 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LichSuMuaThietBiService } from '../services/lich-su-mua-thiet-bi.service';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
 
-const mockPrisma = {
+const mockPrisma: any = {
+  $transaction: jest.fn((callback: any) => callback(mockPrisma)),
   lichSuMuaThietBi: {
     findMany: jest.fn(),
     findFirst: jest.fn(),
@@ -15,6 +17,9 @@ const mockPrisma = {
   thietBi: {
     findFirst: jest.fn(),
   },
+};
+const mockThongKeSnapshotService = {
+  invalidateAll: jest.fn(),
 };
 
 const CREATE_DTO = {
@@ -40,6 +45,7 @@ describe('LichSuMuaThietBiService', () => {
       providers: [
         LichSuMuaThietBiService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: ThongKeSnapshotService, useValue: mockThongKeSnapshotService },
       ],
     }).compile();
 
@@ -79,6 +85,8 @@ describe('LichSuMuaThietBiService', () => {
       }),
     });
     expect(result).not.toHaveProperty('isDelete');
+    expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledTimes(1);
+    expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledWith(mockPrisma);
   });
 
   it('báo lỗi khi tạo với thiết bị không tồn tại', async () => {
@@ -86,6 +94,16 @@ describe('LichSuMuaThietBiService', () => {
 
     await expect(service.create(CREATE_DTO)).rejects.toThrow(NotFoundException);
     expect(mockPrisma.lichSuMuaThietBi.create).not.toHaveBeenCalled();
+    expect(mockThongKeSnapshotService.invalidateAll).not.toHaveBeenCalled();
+  });
+
+  it('không invalidate khi lệnh tạo lịch sử mua thất bại', async () => {
+    mockPrisma.thietBi.findFirst.mockResolvedValue({ thietBiId: 1 });
+    mockPrisma.lichSuMuaThietBi.create.mockRejectedValue(new Error('write failed'));
+
+    await expect(service.create(CREATE_DTO)).rejects.toThrow('write failed');
+
+    expect(mockThongKeSnapshotService.invalidateAll).not.toHaveBeenCalled();
   });
 
   it('trả chi tiết và báo lỗi khi không tồn tại', async () => {
@@ -112,6 +130,8 @@ describe('LichSuMuaThietBiService', () => {
         ngayMua: new Date('2024-02-01'),
       }),
     });
+    expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledTimes(1);
+    expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledWith(mockPrisma);
   });
 
   it('xóa mềm lịch sử mua', async () => {
@@ -127,6 +147,8 @@ describe('LichSuMuaThietBiService', () => {
       where: { id: 1 },
       data: { isDelete: true },
     });
+    expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledTimes(1);
+    expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledWith(mockPrisma);
   });
 
   it('tìm kiếm và phân trang theo thietBiId', async () => {

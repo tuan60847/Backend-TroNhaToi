@@ -2,9 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ThietBiService } from '../services/thiet-bi.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotFoundException } from '@nestjs/common';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
 
 // ─── Mock Prisma ─────────────────────────────────────────────────────
-const mockPrisma = {
+const mockPrisma: any = {
+  $transaction: jest.fn((callback: any) => callback(mockPrisma)),
   thietBi: {
     findMany:  jest.fn(),
     findFirst: jest.fn(),
@@ -13,6 +15,9 @@ const mockPrisma = {
     count:     jest.fn(),
   },
 };
+const mockThongKeSnapshotService = {
+  invalidateAll: jest.fn(),
+};
 
 // ─── Fixtures ────────────────────────────────────────────────────────
 const VALID_ID   = 1;
@@ -20,6 +25,7 @@ const INVALID_ID = 9999;
 const CREATE_DTO = {"tenThietBi": "Điều hòa Panasonic", "loai": "Điều hòa", "giaTri": 8000000, "ngayMua": "2023-06-01", "trangThai": 1};
 const UPDATE_DTO = {"trangThai": 2, "giaTri": 7000000};
 const MOCK_ITEM  = { thietBiId: 1, ...CREATE_DTO };
+const TRANSFORMED_MOCK_ITEM = { ...CREATE_DTO, thietBiID: 1 };
 
 describe('ThietBiService', () => {
   let service: ThietBiService;
@@ -29,6 +35,7 @@ describe('ThietBiService', () => {
       providers: [
         ThietBiService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: ThongKeSnapshotService, useValue: mockThongKeSnapshotService },
       ],
     }).compile();
 
@@ -44,9 +51,13 @@ describe('ThietBiService', () => {
   // ── findAll ────────────────────────────────────────────────────────
   describe('findAll()', () => {
     it('trả về mảng khi có dữ liệu', async () => {
-      mockPrisma.thietBi.findMany.mockResolvedValue([MOCK_ITEM]);
+      mockPrisma.thietBi.findMany.mockResolvedValue([
+        { ...MOCK_ITEM, lichSuMua: [], laprap: [] },
+      ]);
       const result = await service.findAll();
-      expect(result).toEqual([MOCK_ITEM]);
+      expect(result).toEqual([
+        { ...TRANSFORMED_MOCK_ITEM, soLuongMua: 0, soLuongLapDat: 0 },
+      ]);
       expect(mockPrisma.thietBi.findMany).toHaveBeenCalledTimes(1);
     });
 
@@ -61,7 +72,7 @@ describe('ThietBiService', () => {
     it('trả về record khi tìm thấy', async () => {
       mockPrisma.thietBi.findFirst.mockResolvedValue(MOCK_ITEM);
       const result = await service.findOne(VALID_ID as any);
-      expect(result).toEqual(MOCK_ITEM);
+      expect(result).toEqual(TRANSFORMED_MOCK_ITEM);
       expect(mockPrisma.thietBi.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({ where: { thietBiId: VALID_ID, isDelete: false } }),
       );
@@ -88,12 +99,22 @@ describe('ThietBiService', () => {
       expect(mockPrisma.thietBi.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: CREATE_DTO }),
       );
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('gọi prisma.create đúng 1 lần', async () => {
       mockPrisma.thietBi.create.mockResolvedValue(MOCK_ITEM);
       await service.create(CREATE_DTO as any);
       expect(mockPrisma.thietBi.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('không invalidate khi lệnh ghi thất bại', async () => {
+      mockPrisma.thietBi.create.mockRejectedValue(new Error('write failed'));
+
+      await expect(service.create(CREATE_DTO as any)).rejects.toThrow('write failed');
+
+      expect(mockThongKeSnapshotService.invalidateAll).not.toHaveBeenCalled();
     });
   });
 
@@ -109,6 +130,8 @@ describe('ThietBiService', () => {
       expect(mockPrisma.thietBi.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { thietBiId: VALID_ID } }),
       );
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {
@@ -123,6 +146,7 @@ describe('ThietBiService', () => {
         await service.update(INVALID_ID as any, UPDATE_DTO as any);
       } catch {}
       expect(mockPrisma.thietBi.update).not.toHaveBeenCalled();
+      expect(mockThongKeSnapshotService.invalidateAll).not.toHaveBeenCalled();
     });
   });
 
@@ -137,6 +161,8 @@ describe('ThietBiService', () => {
       expect(mockPrisma.thietBi.update).toHaveBeenCalledWith(
         { where: { thietBiId: VALID_ID }, data: { isDelete: true } },
       );
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {
@@ -161,7 +187,7 @@ describe('ThietBiService', () => {
 
       const result = await service.search({ q: 'Panasonic' } as any);
 
-      expect(result).toEqual({ total: 1, data: [MOCK_ITEM] });
+      expect(result).toEqual({ total: 1, data: [TRANSFORMED_MOCK_ITEM] });
       expect(mockPrisma.thietBi.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {
@@ -206,7 +232,7 @@ describe('ThietBiService', () => {
     it('tìm theo tên (tenThietBi contains) và trả về mảng', async () => {
       mockPrisma.thietBi.findMany.mockResolvedValue([MOCK_ITEM]);
       const result = await service.searchByName('Panasonic');
-      expect(result).toEqual([MOCK_ITEM]);
+      expect(result).toEqual([TRANSFORMED_MOCK_ITEM]);
       expect(mockPrisma.thietBi.findMany).toHaveBeenCalledWith({
         where: { tenThietBi: { contains: 'Panasonic' }, isDelete: false },
       });
@@ -223,7 +249,7 @@ describe('ThietBiService', () => {
     it('lấy 15 phần tử đầu khi không truyền id', async () => {
       mockPrisma.thietBi.findMany.mockResolvedValue([MOCK_ITEM]);
       const result = await service.getAllLoadingBalance();
-      expect(result).toEqual([MOCK_ITEM]);
+      expect(result).toEqual([TRANSFORMED_MOCK_ITEM]);
       expect(mockPrisma.thietBi.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { isDelete: false },
@@ -236,7 +262,7 @@ describe('ThietBiService', () => {
     it('lấy 15 phần tử tiếp theo kể từ id truyền vào (cursor)', async () => {
       mockPrisma.thietBi.findMany.mockResolvedValue([MOCK_ITEM]);
       const result = await service.getAllLoadingBalance(VALID_ID as any);
-      expect(result).toEqual([MOCK_ITEM]);
+      expect(result).toEqual([TRANSFORMED_MOCK_ITEM]);
       expect(mockPrisma.thietBi.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { isDelete: false },

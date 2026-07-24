@@ -2,10 +2,14 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePhongDto } from '../dto/create-phong.dto';
 import { UpdatePhongDto } from '../dto/update-phong.dto';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
 
 @Injectable()
 export class PhongService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private thongKeSnapshotService: ThongKeSnapshotService,
+  ) { }
 
   async findAll() {
     const dsPhong = await this.prisma.phong.findMany({
@@ -66,14 +70,18 @@ export class PhongService {
   }
 
   create(dto: CreatePhongDto) {
-    return this.prisma.phong.create({
-      data: {
-        tenPhong: dto.tenPhong,
-        trangThai: dto.trangThai,
-        moTa: dto.moTa,
-        maLoaiPhong: dto.maLoaiPhong,
-        isDelete: false,
-      }
+    return this.prisma.$transaction(async (tx) => {
+      const phong = await tx.phong.create({
+        data: {
+          tenPhong: dto.tenPhong,
+          trangThai: dto.trangThai,
+          moTa: dto.moTa,
+          maLoaiPhong: dto.maLoaiPhong,
+          isDelete: false,
+        },
+      });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return phong;
     });
   }
 
@@ -83,14 +91,18 @@ export class PhongService {
       where: { phongId: id },
     });
     if (!roomCurrent) throw new NotFoundException(`Phong với id ${id} không tồn tại`);
-    return this.prisma.phong.update({
-      where: { phongId: id },
-      data: {
-        tenPhong: dto.tenPhong,
-        trangThai: dto.trangThai,
-        moTa: dto.moTa,
-        maLoaiPhong: dto.maLoaiPhong,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const phong = await tx.phong.update({
+        where: { phongId: id },
+        data: {
+          tenPhong: dto.tenPhong,
+          trangThai: dto.trangThai,
+          moTa: dto.moTa,
+          maLoaiPhong: dto.maLoaiPhong,
+        },
+      });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return phong;
     });
   }
 
@@ -160,6 +172,13 @@ export class PhongService {
       );
     }
 
-    return this.prisma.phong.update({ where: { phongId: id }, data: { isDelete: true } });
+    return this.prisma.$transaction(async (tx) => {
+      const phong = await tx.phong.update({
+        where: { phongId: id },
+        data: { isDelete: true },
+      });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return phong;
+    });
   }
 }

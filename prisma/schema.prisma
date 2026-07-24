@@ -338,14 +338,23 @@ model ThongKeSnapshot {
   kyThongKe   String   @unique @db.VarChar(7)
   nam         Int
   thang       Int?
+  phienBan    Int      @default(0)
   duLieu      Json
   tinhTuLuc   DateTime @default(now()) @db.DateTime(3)
-  hetHanLuc   DateTime @db.DateTime(3)
+  hetHanLuc   DateTime? @db.DateTime(3)
   createdAt   DateTime @default(now()) @db.DateTime(3)
   updatedAt   DateTime @updatedAt @db.DateTime(3)
 
   @@index([nam, thang])
   @@map("thongkesnapshot")
+}
+
+model ThongKeRevision {
+  id        Int      @id
+  phienBan  Int      @default(0)
+  updatedAt DateTime @updatedAt @db.DateTime(3)
+
+  @@map("thongkerevision")
 }
 model CauHinhGia {
   id        Int      @id @default(autoincrement()) @map("id")

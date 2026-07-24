@@ -5,6 +5,11 @@ import {
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../../prisma/prisma.service';
 import { HopDongService } from '../services/hop-dong.service';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
+
+const mockThongKeSnapshot = {
+    invalidateAll: jest.fn(),
+};
 
 const mockPrisma = {
     hopDong: {
@@ -54,6 +59,7 @@ describe('HopDongService', () => {
             providers: [
                 HopDongService,
                 { provide: PrismaService, useValue: mockPrisma },
+                { provide: ThongKeSnapshotService, useValue: mockThongKeSnapshot },
             ],
         }).compile();
 
@@ -128,6 +134,9 @@ describe('HopDongService', () => {
             where: { idnt: 1 },
             data: { trangThai: 1 },
         });
+        expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+        expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+        expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('không tạo khi phòng không tồn tại hoặc hợp đồng bị trùng', async () => {
@@ -135,6 +144,7 @@ describe('HopDongService', () => {
         await expect(service.create(CREATE_DTO, [])).rejects.toThrow(
             BadRequestException,
         );
+        expect(mockThongKeSnapshot.invalidateAll).not.toHaveBeenCalled();
 
         mockPrisma.phong.findUnique.mockResolvedValueOnce({ phongId: 2 });
         mockPrisma.hopDong.count.mockResolvedValueOnce(1);
@@ -164,6 +174,67 @@ describe('HopDongService', () => {
         expect(mockPrisma.hopDong.update).toHaveBeenCalledWith(
             expect.objectContaining({ where: { hopDongId: MOCK_ITEM.hopDongId } }),
         );
+        expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+        expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
+    });
+
+    it('thay hợp đồng đang hiệu lực và chỉ vô hiệu hóa snapshot một lần', async () => {
+        const existing = { ...MOCK_ITEM, trangThai: 1 };
+        const replacement = {
+            ...MOCK_ITEM,
+            hopDongId: '202401-2-2',
+            trangThai: 1,
+        };
+        mockPrisma.hopDong.findFirst
+            .mockResolvedValueOnce(existing)
+            .mockResolvedValueOnce(null);
+        mockPrisma.phong.findUnique.mockResolvedValue({ phongId: 2 });
+        mockPrisma.hopDong.count.mockResolvedValue(1);
+        mockPrisma.hopDong.update.mockResolvedValue({
+            ...existing,
+            trangThai: 2,
+        });
+        mockPrisma.hopDong.create.mockResolvedValue(replacement);
+
+        const result = await service.update(
+            existing.hopDongId,
+            CREATE_DTO,
+            [],
+        );
+
+        expect(result).toEqual(expect.objectContaining({ data: replacement }));
+        expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+        expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+        expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
+    });
+
+    it('gia hạn hợp đồng và vô hiệu hóa snapshot đúng một lần', async () => {
+        const ngayHetHan = new Date();
+        const ngayHetHanMoi = new Date(ngayHetHan);
+        ngayHetHanMoi.setDate(ngayHetHanMoi.getDate() + 1);
+        const updated = {
+            ...MOCK_ITEM,
+            trangThai: 1,
+            ngayHetHan: ngayHetHanMoi,
+            anhHopDong: 'a.jpg,b.jpg',
+        };
+        mockPrisma.hopDong.findFirst.mockResolvedValue({
+            ...MOCK_ITEM,
+            trangThai: 1,
+            ngayHetHan,
+        });
+        mockPrisma.hopDong.update.mockResolvedValue(updated);
+
+        const result = await service.giaHan(
+            MOCK_ITEM.hopDongId,
+            { ngayHetHanMoi: ngayHetHanMoi.toISOString() },
+            [],
+        );
+
+        expect(result.success).toBe(true);
+        expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+        expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+        expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('không cho chuyển hợp đồng sang phòng khác', async () => {
@@ -172,6 +243,7 @@ describe('HopDongService', () => {
         await expect(
             service.update(MOCK_ITEM.hopDongId, { phongId: 99 }, []),
         ).rejects.toThrow(BadRequestException);
+        expect(mockThongKeSnapshot.invalidateAll).not.toHaveBeenCalled();
     });
 
     it('trả chi tiết, xóa mềm và báo lỗi khi không tồn tại', async () => {
@@ -189,9 +261,21 @@ describe('HopDongService', () => {
             where: { hopDongId: MOCK_ITEM.hopDongId },
             data: { isDelete: true },
         });
+        expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+        expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
 
         mockPrisma.hopDong.findFirst.mockResolvedValue(null);
         await expect(service.findOne('missing')).rejects.toThrow(NotFoundException);
+    });
+
+    it('không vô hiệu hóa snapshot khi ghi hợp đồng thất bại', async () => {
+        mockPrisma.hopDong.findFirst.mockResolvedValue(MOCK_ITEM);
+        mockPrisma.hopDong.update.mockRejectedValue(new Error('write failed'));
+
+        await expect(service.remove(MOCK_ITEM.hopDongId)).rejects.toThrow(
+            'write failed',
+        );
+        expect(mockThongKeSnapshot.invalidateAll).not.toHaveBeenCalled();
     });
 
     it('tìm kiếm và phân trang hợp đồng', async () => {

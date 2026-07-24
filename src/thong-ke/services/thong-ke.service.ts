@@ -1,12 +1,10 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, ServiceUnavailableException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ThongKeQueryDto } from "../dto/thong-ke-query.dto";
 
 @Injectable()
 export class ThongKeService {
-  private readonly snapshotTtlMs = 1 * 10 * 1000;
-
   constructor(private readonly prisma: PrismaService) { }
 
   /**
@@ -68,6 +66,108 @@ export class ThongKeService {
       snapshot.topHangHoa,
       snapshot.topThietBiSua,
     ].every(Array.isArray);
+  }
+
+  private async getCurrentRevision(): Promise<number | null> {
+    const revision = await this.prisma.thongKeRevision.findUnique({
+      where: { id: 1 },
+      select: { phienBan: true },
+    });
+
+    return revision?.phienBan ?? null;
+  }
+
+  private async refreshTimeDependentData(
+    value: unknown,
+  ): Promise<Prisma.InputJsonValue> {
+    const [phong, nguoiThue, hopDongSapHet] = await Promise.all([
+      this.getThongKePhong(),
+      this.getThongKeNguoiThue(),
+      this.getHopDongSapHet(),
+    ]);
+
+    return this.toJson({
+      ...(value as Record<string, unknown>),
+      phong,
+      nguoiThue,
+      hopDongSapHet,
+    });
+  }
+
+  private async saveSnapshotIfRevisionMatches(
+    dto: ThongKeQueryDto,
+    kyThongKe: string,
+    duLieu: Prisma.InputJsonValue,
+    expectedRevision: number | null,
+  ): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const revisionToSave = expectedRevision ?? 0;
+
+      if (expectedRevision === null) {
+        const revision = await tx.thongKeRevision.upsert({
+          where: { id: 1 },
+          create: {
+            id: 1,
+            phienBan: 0,
+          },
+          update: {
+            phienBan: {
+              increment: 0,
+            },
+          },
+          select: {
+            phienBan: true,
+          },
+        });
+
+        if (revision.phienBan !== revisionToSave) {
+          return false;
+        }
+
+        await tx.thongKeSnapshot.deleteMany();
+      } else {
+        const lockedRevision = await tx.thongKeRevision.updateMany({
+          where: {
+            id: 1,
+            phienBan: revisionToSave,
+          },
+          data: {
+            phienBan: {
+              increment: 0,
+            },
+          },
+        });
+
+        if (lockedRevision.count === 0) {
+          return false;
+        }
+      }
+
+      const tinhTuLuc = new Date();
+
+      await tx.thongKeSnapshot.upsert({
+        where: {
+          kyThongKe,
+        },
+        create: {
+          kyThongKe,
+          nam: dto.nam,
+          thang: dto.thang ?? null,
+          phienBan: revisionToSave,
+          duLieu,
+          tinhTuLuc,
+        },
+        update: {
+          nam: dto.nam,
+          thang: dto.thang ?? null,
+          phienBan: revisionToSave,
+          duLieu,
+          tinhTuLuc,
+        },
+      });
+
+      return true;
+    });
   }
 
   /**
@@ -952,9 +1052,15 @@ export class ThongKeService {
   }
 
   async getThongKe(dto: ThongKeQueryDto) {
-    const kyThongKe = this.getKyThongKe(dto);
+    return this.getThongKeWithRetry(dto, 0);
+  }
 
-    const now = new Date();
+  private async getThongKeWithRetry(
+    dto: ThongKeQueryDto,
+    retryCount: number,
+  ): Promise<Prisma.InputJsonValue> {
+    const kyThongKe = this.getKyThongKe(dto);
+    const currentRevision = await this.getCurrentRevision();
 
     const snapshot = await this.prisma.thongKeSnapshot.findUnique({
       where: {
@@ -964,38 +1070,33 @@ export class ThongKeService {
 
     if (
       snapshot &&
-      snapshot.hetHanLuc > now &&
+      currentRevision !== null &&
+      snapshot.phienBan === currentRevision &&
       this.isCurrentSnapshot(snapshot.duLieu)
     ) {
-      return snapshot.duLieu;
+      return this.refreshTimeDependentData(snapshot.duLieu);
     }
 
     const duLieu = await this.tinhThongKe(dto);
 
     const duLieuJson = this.toJson(duLieu);
 
-    const hetHanLuc = new Date(now.getTime() + this.snapshotTtlMs);
+    const saved = await this.saveSnapshotIfRevisionMatches(
+      dto,
+      kyThongKe,
+      duLieuJson,
+      currentRevision,
+    );
 
-    await this.prisma.thongKeSnapshot.upsert({
-      where: {
-        kyThongKe,
-      },
-      create: {
-        kyThongKe,
-        nam: dto.nam,
-        thang: dto.thang ?? null,
-        duLieu: duLieuJson,
-        tinhTuLuc: now,
-        hetHanLuc,
-      },
-      update: {
-        nam: dto.nam,
-        thang: dto.thang ?? null,
-        duLieu: duLieuJson,
-        tinhTuLuc: now,
-        hetHanLuc,
-      },
-    });
+    if (!saved) {
+      if (retryCount >= 2) {
+        throw new ServiceUnavailableException(
+          "Dữ liệu thống kê đang được cập nhật, vui lòng thử lại.",
+        );
+      }
+
+      return this.getThongKeWithRetry(dto, retryCount + 1);
+    }
 
     return duLieuJson;
   }

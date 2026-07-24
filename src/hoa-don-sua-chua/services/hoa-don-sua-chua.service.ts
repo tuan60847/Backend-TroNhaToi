@@ -4,10 +4,14 @@ import { CreateHoaDonSuaChuaDto } from '../dto/create-hoa-don-sua-chua.dto';
 import { UpdateHoaDonSuaChuaDto } from '../dto/update-hoa-don-sua-chua.dto';
 import { SearchHoaDonSuaChuaDto } from '../dto/search-hoa-don-sua-chua.dto';
 import { TrangThaiHoaDonSuaChua } from '../constants/trang-thai-hoa-don-sua-chua.enum';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
 
 @Injectable()
 export class HoaDonSuaChuaService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private thongKeSnapshot: ThongKeSnapshotService,
+  ) {}
 
   findAll() {
     return this.prisma.hoaDonSuaChua.findMany({
@@ -46,22 +50,40 @@ export class HoaDonSuaChuaService {
   async create(dto: CreateHoaDonSuaChuaDto) {
     const maHoaDonSc = await this.generateMaHoaDonSc();
 
-    return this.prisma.hoaDonSuaChua.create({
-      data: {
-        maHoaDonSc,
-        ...dto,
-      } as any,
+    return this.prisma.$transaction(async (tx) => {
+      const result = await tx.hoaDonSuaChua.create({
+        data: {
+          maHoaDonSc,
+          ...dto,
+        } as any,
+      });
+      await this.thongKeSnapshot.invalidateAll(tx);
+      return result;
     });
   }
 
   async update(id: string, dto: UpdateHoaDonSuaChuaDto) {
     await this.findOne(id);
-    return this.prisma.hoaDonSuaChua.update({ where: { maHoaDonSc: id }, data: dto as any });
+    return this.prisma.$transaction(async (tx) => {
+      const result = await tx.hoaDonSuaChua.update({
+        where: { maHoaDonSc: id },
+        data: dto as any,
+      });
+      await this.thongKeSnapshot.invalidateAll(tx);
+      return result;
+    });
   }
 
   async remove(id: string) {
     await this.findOne(id);
-    return this.prisma.hoaDonSuaChua.update({ where: { maHoaDonSc: id }, data: { isDelete: true } });
+    return this.prisma.$transaction(async (tx) => {
+      const result = await tx.hoaDonSuaChua.update({
+        where: { maHoaDonSc: id },
+        data: { isDelete: true },
+      });
+      await this.thongKeSnapshot.invalidateAll(tx);
+      return result;
+    });
   }
   async search(req: SearchHoaDonSuaChuaDto) {
     const { trangThai, loaiSua, idSuaChua, limit = 10, offset = 0, sortBy = 'maHoaDonSc', sort = 'desc' } = req;
@@ -97,7 +119,14 @@ export class HoaDonSuaChuaService {
     if (item.trangThai === TrangThaiHoaDonSuaChua.HOAN_THANH) {
       throw new BadRequestException('Hóa đơn sửa chữa đã hoàn thành, không thể đổi trạng thái');
     }
-    return this.prisma.hoaDonSuaChua.update({ where: { maHoaDonSc: id }, data: { trangThai } });
+    return this.prisma.$transaction(async (tx) => {
+      const result = await tx.hoaDonSuaChua.update({
+        where: { maHoaDonSc: id },
+        data: { trangThai },
+      });
+      await this.thongKeSnapshot.invalidateAll(tx);
+      return result;
+    });
   }
 
   getAllLoadingBalance(id?: string) {

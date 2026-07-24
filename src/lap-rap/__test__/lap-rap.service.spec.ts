@@ -2,9 +2,17 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { LapRapService } from '../services/lap-rap.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotFoundException } from '@nestjs/common';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
 
 // ─── Mock Prisma ─────────────────────────────────────────────────────
-const mockPrisma = {
+const mockPrisma: any = {
+  $transaction: jest.fn((callback: any) => callback(mockPrisma)),
+  phong: {
+    findFirst: jest.fn(),
+  },
+  thietBi: {
+    findFirst: jest.fn(),
+  },
   lapRap: {
     findMany:  jest.fn(),
     findFirst: jest.fn(),
@@ -12,6 +20,9 @@ const mockPrisma = {
     update:    jest.fn(),
     count:     jest.fn(),
   },
+};
+const mockThongKeSnapshotService = {
+  invalidateAll: jest.fn(),
 };
 
 // ─── Fixtures ────────────────────────────────────────────────────────
@@ -29,6 +40,7 @@ describe('LapRapService', () => {
       providers: [
         LapRapService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: ThongKeSnapshotService, useValue: mockThongKeSnapshotService },
       ],
     }).compile();
 
@@ -88,12 +100,22 @@ describe('LapRapService', () => {
       expect(mockPrisma.lapRap.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: CREATE_DTO }),
       );
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('gọi prisma.create đúng 1 lần', async () => {
       mockPrisma.lapRap.create.mockResolvedValue(MOCK_ITEM);
       await service.create(CREATE_DTO as any);
       expect(mockPrisma.lapRap.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('không invalidate khi lệnh ghi thất bại', async () => {
+      mockPrisma.lapRap.create.mockRejectedValue(new Error('write failed'));
+
+      await expect(service.create(CREATE_DTO as any)).rejects.toThrow('write failed');
+
+      expect(mockThongKeSnapshotService.invalidateAll).not.toHaveBeenCalled();
     });
   });
 
@@ -109,6 +131,8 @@ describe('LapRapService', () => {
       expect(mockPrisma.lapRap.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: VALID_ID } }),
       );
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {
@@ -123,6 +147,7 @@ describe('LapRapService', () => {
         await service.update(INVALID_ID as any, UPDATE_DTO as any);
       } catch {}
       expect(mockPrisma.lapRap.update).not.toHaveBeenCalled();
+      expect(mockThongKeSnapshotService.invalidateAll).not.toHaveBeenCalled();
     });
   });
 
@@ -137,6 +162,8 @@ describe('LapRapService', () => {
       expect(mockPrisma.lapRap.update).toHaveBeenCalledWith(
         { where: { id: VALID_ID }, data: { isDelete: true } },
       );
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {
@@ -150,6 +177,80 @@ describe('LapRapService', () => {
         await service.remove(INVALID_ID as any);
       } catch {}
       expect(mockPrisma.lapRap.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('các nghiệp vụ lắp ráp đặc thù', () => {
+    it('taoLapRap ghi và invalidate đúng một lần trong cùng transaction', async () => {
+      mockPrisma.phong.findFirst.mockResolvedValue({ phongId: 1 });
+      mockPrisma.thietBi.findFirst.mockResolvedValue({
+        thietBiId: 1,
+        lichSuMua: [{ soLuong: 5 }],
+        laprap: [],
+      });
+      mockPrisma.lapRap.create.mockResolvedValue({
+        ...MOCK_ITEM,
+        thietbi: { thietBiId: 1, tenThietBi: 'Máy lạnh', isDelete: false },
+        isDelete: false,
+      });
+
+      await service.taoLapRap(CREATE_DTO as any);
+
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledWith(mockPrisma);
+    });
+
+    it('capNhatLapRap cập nhật số lượng và invalidate đúng một lần', async () => {
+      mockPrisma.lapRap.findFirst.mockResolvedValue({
+        ...MOCK_ITEM,
+        soLuong: 1,
+        thietbi: {
+          thietBiId: 1,
+          lichSuMua: [{ soLuong: 5 }],
+          laprap: [{ soLuong: 1 }],
+        },
+      });
+      mockPrisma.lapRap.update.mockResolvedValue({
+        ...MOCK_ITEM,
+        soLuong: 2,
+        thietbi: { thietBiId: 1, tenThietBi: 'Máy lạnh', isDelete: false },
+      });
+
+      await service.capNhatLapRap(VALID_ID, 2);
+
+      expect(mockPrisma.lapRap.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: VALID_ID },
+          data: { soLuong: 2 },
+        }),
+      );
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledWith(mockPrisma);
+    });
+
+    it('capNhatLapRap xóa mềm khi số lượng không dương và chỉ invalidate một lần', async () => {
+      mockPrisma.lapRap.findFirst.mockResolvedValue({
+        ...MOCK_ITEM,
+        thietbi: {
+          thietBiId: 1,
+          lichSuMua: [],
+          laprap: [],
+        },
+      });
+      mockPrisma.lapRap.update.mockResolvedValue({
+        ...MOCK_ITEM,
+        isDelete: true,
+      });
+
+      await service.capNhatLapRap(VALID_ID, 0);
+
+      expect(mockPrisma.lapRap.update).toHaveBeenCalledWith({
+        where: { id: VALID_ID },
+        data: { isDelete: true },
+      });
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
   });
 

@@ -2,6 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { HoaDonSuaChuaService } from '../services/hoa-don-sua-chua.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
+
+const mockThongKeSnapshot = { invalidateAll: jest.fn() };
 
 // ─── Mock Prisma ─────────────────────────────────────────────────────
 const mockPrisma = {
@@ -12,6 +15,7 @@ const mockPrisma = {
     update:    jest.fn(),
     count:     jest.fn(),
   },
+  $transaction: jest.fn((cb: any) => cb(mockPrisma)),
 };
 
 // ─── Fixtures ────────────────────────────────────────────────────────
@@ -29,6 +33,7 @@ describe('HoaDonSuaChuaService', () => {
       providers: [
         HoaDonSuaChuaService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: ThongKeSnapshotService, useValue: mockThongKeSnapshot },
       ],
     }).compile();
 
@@ -86,8 +91,15 @@ describe('HoaDonSuaChuaService', () => {
       const result = await service.create(CREATE_DTO as any);
       expect(result).toEqual(MOCK_ITEM);
       expect(mockPrisma.hoaDonSuaChua.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: CREATE_DTO }),
+        {
+          data: expect.objectContaining({
+            ...CREATE_DTO,
+            maHoaDonSc: expect.any(String),
+          }),
+        },
       );
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('gọi prisma.create đúng 1 lần', async () => {
@@ -109,6 +121,8 @@ describe('HoaDonSuaChuaService', () => {
       expect(mockPrisma.hoaDonSuaChua.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { maHoaDonSc: VALID_ID } }),
       );
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {
@@ -137,6 +151,8 @@ describe('HoaDonSuaChuaService', () => {
       expect(mockPrisma.hoaDonSuaChua.update).toHaveBeenCalledWith(
         { where: { maHoaDonSc: VALID_ID }, data: { isDelete: true } },
       );
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {
@@ -165,6 +181,8 @@ describe('HoaDonSuaChuaService', () => {
       expect(mockPrisma.hoaDonSuaChua.update).toHaveBeenCalledWith(
         { where: { maHoaDonSc: VALID_ID }, data: { trangThai: 2 } },
       );
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('ném BadRequestException khi đã hoàn thành (trangThai=2)', async () => {

@@ -3,10 +3,14 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSuaChuaDto } from '../dto/create-sua-chua.dto';
 import { UpdateSuaChuaDto } from '../dto/update-sua-chua.dto';
 import { SearchSuaChuaDto } from '../dto/search-sua-chua.dto';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
 
 @Injectable()
 export class SuaChuaService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private thongKeSnapshotService: ThongKeSnapshotService,
+  ) { }
 
   findAll() {
     return this.prisma.suaChua.findMany({
@@ -69,7 +73,7 @@ export class SuaChuaService {
         });
       }
 
-      return tx.suaChua.findFirst({
+      const result = await tx.suaChua.findFirst({
         where: {
           id: suaChua.id,
         },
@@ -79,6 +83,8 @@ export class SuaChuaService {
           thietbi: true,
         },
       });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return result;
     });
   }
 
@@ -133,7 +139,7 @@ export class SuaChuaService {
         }
       }
 
-      return tx.suaChua.findFirst({
+      const result = await tx.suaChua.findFirst({
         where: { id },
         include: {
           hoadonsuachua: true,
@@ -141,12 +147,21 @@ export class SuaChuaService {
           thietbi: true,
         },
       });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return result;
     });
   }
 
   async remove(id: number) {
     await this.findOne(id);
-    return this.prisma.suaChua.update({ where: { id }, data: { isDelete: true } });
+    return this.prisma.$transaction(async (tx) => {
+      const removed = await tx.suaChua.update({
+        where: { id },
+        data: { isDelete: true },
+      });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return removed;
+    });
   }
 
   async search(req: SearchSuaChuaDto) {

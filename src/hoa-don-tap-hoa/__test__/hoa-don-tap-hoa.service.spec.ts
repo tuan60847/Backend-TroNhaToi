@@ -2,6 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { HoaDonTapHoaService } from '../services/hoa-don-tap-hoa.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotFoundException } from '@nestjs/common';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
+
+const mockThongKeSnapshot = { invalidateAll: jest.fn() };
 
 // ─── Mock Prisma ─────────────────────────────────────────────────────
 const mockPrisma = {
@@ -76,6 +79,7 @@ describe('HoaDonTapHoaService', () => {
       providers: [
         HoaDonTapHoaService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: ThongKeSnapshotService, useValue: mockThongKeSnapshot },
       ],
     }).compile();
 
@@ -136,6 +140,8 @@ describe('HoaDonTapHoaService', () => {
       expect(mockPrisma.hoaDonTapHoa.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ ...CREATE_DTO, maHoaDon: expect.any(String) }),
       });
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('gọi prisma.create đúng 1 lần', async () => {
@@ -165,6 +171,8 @@ describe('HoaDonTapHoaService', () => {
       expect(mockPrisma.hoaDonTapHoa.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { maHoaDon: VALID_ID } }),
       );
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {
@@ -193,6 +201,8 @@ describe('HoaDonTapHoaService', () => {
       expect(mockPrisma.hoaDonTapHoa.update).toHaveBeenCalledWith(
         { where: { maHoaDon: VALID_ID }, data: { isDelete: true } },
       );
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {

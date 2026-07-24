@@ -5,10 +5,14 @@ import { UpdateHopDongDto } from '../dto/update-hop-dong.dto';
 import { SearchHopDongDto } from '../dto/search-hop-dong.dto';
 import { generateId } from '../../common/utils/generate-id.util';
 import { GiaHanHopDongDto } from '../dto/renew-hop-dong.dto';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
 
 @Injectable()
 export class HopDongService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private thongKeSnapshotService: ThongKeSnapshotService,
+  ) {}
   //Lấy ds  hợp đồng 
   async findAll() {
     const  dsHopDong = await this.prisma.hopDong.findMany({
@@ -70,7 +74,9 @@ export class HopDongService {
   async create(dto: CreateHopDongDto, listUrlImage: string[]) {
     // dùng transaction để đảm bảo tính toàn vẹn dữ liệu, nếu có lỗi thì nó tự rollback
     return await this.prisma.$transaction(async (prisma) => {
-      return await this._createHopDong(prisma, dto, listUrlImage);
+      const result = await this._createHopDong(prisma, dto, listUrlImage);
+      await this.thongKeSnapshotService.invalidateAll(prisma);
+      return result;
   });
   }
   //Tạo 1 hàm chung như này để có thể dùng chung, đặc biết trong cái update hợp đồng, vì nếu ko truyền prisma vàodungf chung thì trong update sẽ có tới 2 transaction, mà trong 1 transaction thì ko thể gọi transaction khác được, nên phải dùng chung 1 transaction
@@ -231,6 +237,7 @@ export class HopDongService {
         });
       }
 
+      await this.thongKeSnapshotService.invalidateAll(prisma);
       return updatedHD;
     });
   }
@@ -247,7 +254,9 @@ if (existingHopDong.trangThai === 2) {
         where: { hopDongId: id },
         data: { trangThai: 2 }, // Cập nhật hợp đồng cũ thành hết hiệu lực
       });
-     return await this._createHopDong(prisma, dto as CreateHopDongDto, listUrlImage); // Tạo hợp đồng mới với thông tin mới
+      const result = await this._createHopDong(prisma, dto as CreateHopDongDto, listUrlImage); // Tạo hợp đồng mới với thông tin mới
+      await this.thongKeSnapshotService.invalidateAll(prisma);
+      return result;
     });
   }
 
@@ -346,21 +355,25 @@ const ngayHetHanMoi = new Date(stringNgay);
     const ghiChuCapNhat = dto.ghiChu ?? existingHopDong.ghiChu;
 
     
-    const updatedHopDong = await this.prisma.hopDong.update({
-      where: { hopDongId: id },
-      data: {
-        ngayHetHan: ngayHetHanMoi,
-        ghiChu: ghiChuCapNhat,
-        anhHopDong: chuoiAnhUpdated,
-      },
-      include: {
-        phong: {
-          select: { tenPhong: true },
+    const updatedHopDong = await this.prisma.$transaction(async (prisma) => {
+      const hopDong = await prisma.hopDong.update({
+        where: { hopDongId: id },
+        data: {
+          ngayHetHan: ngayHetHanMoi,
+          ghiChu: ghiChuCapNhat,
+          anhHopDong: chuoiAnhUpdated,
         },
-        nguoithue: {
-          select: { hoTen: true },
+        include: {
+          phong: {
+            select: { tenPhong: true },
+          },
+          nguoithue: {
+            select: { hoTen: true },
+          },
         },
-      },
+      });
+      await this.thongKeSnapshotService.invalidateAll(prisma);
+      return hopDong;
     });
 
     return {
@@ -384,7 +397,14 @@ const ngayHetHanMoi = new Date(stringNgay);
 
   async remove(id: string) {
     await this.findOne(id);
-    return this.prisma.hopDong.update({ where: { hopDongId: id }, data: { isDelete: true } });
+    return this.prisma.$transaction(async (prisma) => {
+      const hopDong = await prisma.hopDong.update({
+        where: { hopDongId: id },
+        data: { isDelete: true },
+      });
+      await this.thongKeSnapshotService.invalidateAll(prisma);
+      return hopDong;
+    });
   }
   async search(req: SearchHopDongDto) {
     const { ma, limit = 10, offset = 0, sortBy = 'hopDongId', sort = 'desc' } = req;

@@ -2,6 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PhieuThuHdThService } from '../services/phieu-thu-hdth.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotFoundException } from '@nestjs/common';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
+
+const mockThongKeSnapshot = { invalidateAll: jest.fn() };
 
 // ─── Mock Prisma ─────────────────────────────────────────────────────
 const mockPrisma = {
@@ -9,9 +12,17 @@ const mockPrisma = {
     findMany:  jest.fn(),
     findFirst: jest.fn(),
     create:    jest.fn(),
+    createMany: jest.fn(),
     update:    jest.fn(),
     count:     jest.fn(),
   },
+  nguoiThue: {
+    findFirst: jest.fn(),
+  },
+  hoaDonTapHoa: {
+    findMany: jest.fn(),
+  },
+  $transaction: jest.fn((cb: any) => cb(mockPrisma)),
 };
 
 // ─── Fixtures ────────────────────────────────────────────────────────
@@ -29,6 +40,7 @@ describe('PhieuThuHdThService', () => {
       providers: [
         PhieuThuHdThService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: ThongKeSnapshotService, useValue: mockThongKeSnapshot },
       ],
     }).compile();
 
@@ -88,6 +100,8 @@ describe('PhieuThuHdThService', () => {
       expect(mockPrisma.phieuThuHdTh.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: CREATE_DTO }),
       );
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('gọi prisma.create đúng 1 lần', async () => {
@@ -109,6 +123,8 @@ describe('PhieuThuHdThService', () => {
       expect(mockPrisma.phieuThuHdTh.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { maPhieuThu: VALID_ID } }),
       );
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {
@@ -137,6 +153,8 @@ describe('PhieuThuHdThService', () => {
       expect(mockPrisma.phieuThuHdTh.update).toHaveBeenCalledWith(
         { where: { maPhieuThu: VALID_ID }, data: { isDelete: true } },
       );
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {
@@ -150,6 +168,38 @@ describe('PhieuThuHdThService', () => {
         await service.remove(INVALID_ID as any);
       } catch {}
       expect(mockPrisma.phieuThuHdTh.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('createPhieuThuTheoNguoi()', () => {
+    it('ghi nhiều phiếu thu nhưng chỉ vô hiệu hóa snapshot một lần', async () => {
+      mockPrisma.nguoiThue.findFirst.mockResolvedValue({
+        idnt: 1,
+        isDelete: false,
+      });
+      mockPrisma.hoaDonTapHoa.findMany.mockResolvedValue([
+        {
+          maHoaDon: 'TH00000001A',
+          tongTien: 30000,
+          phieuThuHdTh: [],
+        },
+        {
+          maHoaDon: 'TH00000002A',
+          tongTien: 20000,
+          phieuThuHdTh: [],
+        },
+      ]);
+      mockPrisma.phieuThuHdTh.createMany.mockResolvedValue({ count: 2 });
+
+      await service.createPhieuThuTheoNguoi({
+        idnt: 1,
+        soTien: 50000,
+        ngayThu: '2024-01-20',
+      } as any);
+
+      expect(mockPrisma.phieuThuHdTh.createMany).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
   });
 

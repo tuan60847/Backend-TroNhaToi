@@ -1,13 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { CreateLichSuMuaThietBiDto } from '../dto/create-lich-su-mua-thiet-bi.dto';
 import { UpdateLichSuMuaThietBiDto } from '../dto/update-lich-su-mua-thiet-bi.dto';
 import { SearchLichSuMuaThietBiDto } from '../dto/search-lich-su-mua-thiet-bi.dto';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
 
 
 @Injectable()
 export class LichSuMuaThietBiService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private thongKeSnapshotService: ThongKeSnapshotService,
+  ) { }
 
   private transform(raw: any) {
     const { isDelete, ...rest } = raw;
@@ -31,14 +35,18 @@ export class LichSuMuaThietBiService {
     });
     if (!thietBi) throw new NotFoundException(`ThietBi với id ${dto.thietBiId} không tồn tại`);
 
-    const created = await this.prisma.lichSuMuaThietBi.create({
-      data: {
-        thietBiId: dto.thietBiId,
-        soLuong: dto.soLuong,
-        donGia: dto.donGia,
-        ngayMua: new Date(dto.ngayMua),
-        ghiChu: dto.ghiChu,
-      },
+    const created = await this.prisma.$transaction(async (tx) => {
+      const result = await tx.lichSuMuaThietBi.create({
+        data: {
+          thietBiId: dto.thietBiId,
+          soLuong: dto.soLuong,
+          donGia: dto.donGia,
+          ngayMua: new Date(dto.ngayMua),
+          ghiChu: dto.ghiChu,
+        },
+      });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return result;
     });
     return this.transform(created);
   }
@@ -47,15 +55,23 @@ export class LichSuMuaThietBiService {
     await this.findOne(id);
     const data: any = { ...dto };
     if (dto.ngayMua) data.ngayMua = new Date(dto.ngayMua);
-    const updated = await this.prisma.lichSuMuaThietBi.update({ where: { id }, data });
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const result = await tx.lichSuMuaThietBi.update({ where: { id }, data });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return result;
+    });
     return this.transform(updated);
   }
 
   async remove(id: number) {
     await this.findOne(id);
-    const removed = await this.prisma.lichSuMuaThietBi.update({
-      where: { id },
-      data: { isDelete: true },
+    const removed = await this.prisma.$transaction(async (tx) => {
+      const result = await tx.lichSuMuaThietBi.update({
+        where: { id },
+        data: { isDelete: true },
+      });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return result;
     });
     return this.transform(removed);
   }

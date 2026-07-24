@@ -4,10 +4,14 @@ import { CreateHoaDonTapHoaDto } from '../dto/create-hoa-don-tap-hoa.dto';
 import { UpdateHoaDonTapHoaDto } from '../dto/update-hoa-don-tap-hoa.dto';
 import { SearchHoaDonTapHoaDto } from '../dto/search-hoa-don-tap-hoa.dto';
 import { StatisticsHoaDonTapHoaDto } from '../dto/statistics-hoa-don-tap-hoa.dto';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
 
 @Injectable()
 export class HoaDonTapHoaService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private thongKeSnapshot: ThongKeSnapshotService,
+  ) { }
 
 
 
@@ -127,6 +131,7 @@ export class HoaDonTapHoaService {
         where: { maHoaDon },
         include: this.includeAll,
       });
+      await this.thongKeSnapshot.invalidateAll(tx);
       return this.transform(result);
     });
   }
@@ -189,13 +194,21 @@ export class HoaDonTapHoaService {
         include: this.includeAll,
       });
 
+      await this.thongKeSnapshot.invalidateAll(tx);
       return this.transform(result);
     });
   }
 
   async remove(id: string) {
     await this.findOne(id);
-    return this.prisma.hoaDonTapHoa.update({ where: { maHoaDon: id }, data: { isDelete: true } });
+    return this.prisma.$transaction(async (tx) => {
+      const result = await tx.hoaDonTapHoa.update({
+        where: { maHoaDon: id },
+        data: { isDelete: true },
+      });
+      await this.thongKeSnapshot.invalidateAll(tx);
+      return result;
+    });
   }
   async search(req: SearchHoaDonTapHoaDto) {
     const { ma, limit = 10, offset = 0, sortBy = 'maHoaDon', sort = 'desc' } = req;

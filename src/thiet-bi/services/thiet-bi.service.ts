@@ -3,10 +3,14 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateThietBiDto } from '../dto/create-thiet-bi.dto';
 import { UpdateThietBiDto } from '../dto/update-thiet-bi.dto';
 import { SearchThietBiDto } from '../dto/search-thiet-bi.dto';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
 
 @Injectable()
 export class ThietBiService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private thongKeSnapshotService: ThongKeSnapshotService,
+  ) { }
 
   private transform(raw: any) {
     const { thietBiId, isDelete, ...rest } = raw;
@@ -65,18 +69,36 @@ export class ThietBiService {
     return this.transform(item);
   }
 
-  create(dto: CreateThietBiDto) {
-    return this.prisma.thietBi.create({ data: dto as any });
+  async create(dto: CreateThietBiDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const created = await tx.thietBi.create({ data: dto as any });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return created;
+    });
   }
 
   async update(id: number, dto: UpdateThietBiDto) {
     await this.findOne(id);
-    return this.prisma.thietBi.update({ where: { thietBiId: id }, data: dto as any });
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.thietBi.update({
+        where: { thietBiId: id },
+        data: dto as any,
+      });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return updated;
+    });
   }
 
   async remove(id: number) {
     await this.findOne(id);
-    return this.prisma.thietBi.update({ where: { thietBiId: id }, data: { isDelete: true } });
+    return this.prisma.$transaction(async (tx) => {
+      const removed = await tx.thietBi.update({
+        where: { thietBiId: id },
+        data: { isDelete: true },
+      });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return removed;
+    });
   }
   async search(req: SearchThietBiDto) {
     const { q, trangThai, limit = 10, offset = 0, sortBy = 'thietBiId', sort = 'desc' } = req;

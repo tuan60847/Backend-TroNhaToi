@@ -3,10 +3,14 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateHangHoaDto } from '../dto/create-hang-hoa.dto';
 import { UpdateHangHoaDto } from '../dto/update-hang-hoa.dto';
 import { SearchHangHoaDto } from '../dto/search-hang-hoa.dto';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
 
 @Injectable()
 export class HangHoaService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private thongKeSnapshotService: ThongKeSnapshotService,
+  ) {}
 
   findAll() {
     return this.prisma.hangHoa.findMany({
@@ -22,18 +26,36 @@ export class HangHoaService {
     return item;
   }
 
-  create(dto: CreateHangHoaDto) {
-    return this.prisma.hangHoa.create({ data: dto as any });
+  async create(dto: CreateHangHoaDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const created = await tx.hangHoa.create({ data: dto as any });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return created;
+    });
   }
 
   async update(id: number, dto: UpdateHangHoaDto) {
     await this.findOne(id);
-    return this.prisma.hangHoa.update({ where: { maHangHoa: id }, data: dto as any });
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.hangHoa.update({
+        where: { maHangHoa: id },
+        data: dto as any,
+      });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return updated;
+    });
   }
 
   async remove(id: number) {
     await this.findOne(id);
-    return this.prisma.hangHoa.update({ where: { maHangHoa: id }, data: { isDelete: true } });
+    return this.prisma.$transaction(async (tx) => {
+      const removed = await tx.hangHoa.update({
+        where: { maHangHoa: id },
+        data: { isDelete: true },
+      });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return removed;
+    });
   }
   async search(req: SearchHangHoaDto) {
     const { q, limit = 10, offset = 0, sortBy = 'maHangHoa', sort = 'desc' } = req;

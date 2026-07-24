@@ -2,6 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PhongService } from '../services/phong.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotFoundException } from '@nestjs/common';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
+
+const mockThongKeSnapshot = {
+  invalidateAll: jest.fn(),
+};
 
 // ─── Mock Prisma ─────────────────────────────────────────────────────
 const mockPrisma = {
@@ -12,6 +17,10 @@ const mockPrisma = {
     update:    jest.fn(),
     delete:    jest.fn(),
   },
+  hopDong: {
+    findFirst: jest.fn(),
+  },
+  $transaction: jest.fn(),
 };
 
 // ─── Fixtures ────────────────────────────────────────────────────────
@@ -25,15 +34,22 @@ describe('PhongService', () => {
   let service: PhongService;
 
   beforeEach(async () => {
+    mockPrisma.$transaction.mockImplementation((callback: any) =>
+      callback(mockPrisma),
+    );
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PhongService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: ThongKeSnapshotService, useValue: mockThongKeSnapshot },
       ],
     }).compile();
 
     service = module.get<PhongService>(PhongService);
     jest.clearAllMocks();
+    mockPrisma.$transaction.mockImplementation((callback: any) =>
+      callback(mockPrisma),
+    );
   });
 
   // ── Smoke ──────────────────────────────────────────────────────────
@@ -44,9 +60,13 @@ describe('PhongService', () => {
   // ── findAll ────────────────────────────────────────────────────────
   describe('findAll()', () => {
     it('trả về mảng khi có dữ liệu', async () => {
-      mockPrisma.phong.findMany.mockResolvedValue([MOCK_ITEM]);
+      mockPrisma.phong.findMany.mockResolvedValue([
+        { ...MOCK_ITEM, HopDong: [], loaiPhong: null },
+      ]);
       const result = await service.findAll();
-      expect(result).toEqual([MOCK_ITEM]);
+      expect(result).toEqual([
+        { ...MOCK_ITEM, HopDong: [], loaiPhong: null, giahientai: 0 },
+      ]);
       expect(mockPrisma.phong.findMany).toHaveBeenCalledTimes(1);
     });
 
@@ -86,14 +106,24 @@ describe('PhongService', () => {
       const result = await service.create(CREATE_DTO as any);
       expect(result).toEqual(MOCK_ITEM);
       expect(mockPrisma.phong.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: CREATE_DTO }),
+        expect.objectContaining({ data: { ...CREATE_DTO, isDelete: false } }),
       );
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('gọi prisma.create đúng 1 lần', async () => {
       mockPrisma.phong.create.mockResolvedValue(MOCK_ITEM);
       await service.create(CREATE_DTO as any);
       expect(mockPrisma.phong.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('không vô hiệu hóa snapshot khi ghi dữ liệu thất bại', async () => {
+      mockPrisma.phong.create.mockRejectedValue(new Error('write failed'));
+
+      await expect(service.create(CREATE_DTO as any)).rejects.toThrow('write failed');
+      expect(mockThongKeSnapshot.invalidateAll).not.toHaveBeenCalled();
     });
   });
 
@@ -109,6 +139,8 @@ describe('PhongService', () => {
       expect(mockPrisma.phong.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { phongId: VALID_ID } }),
       );
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {
@@ -123,6 +155,7 @@ describe('PhongService', () => {
         await service.update(INVALID_ID as any, UPDATE_DTO as any);
       } catch {}
       expect(mockPrisma.phong.update).not.toHaveBeenCalled();
+      expect(mockThongKeSnapshot.invalidateAll).not.toHaveBeenCalled();
     });
   });
 
@@ -130,13 +163,18 @@ describe('PhongService', () => {
   describe('remove()', () => {
     it('xóa và trả về record đã xóa', async () => {
       mockPrisma.phong.findUnique.mockResolvedValue(MOCK_ITEM);
-      mockPrisma.phong.delete.mockResolvedValue(MOCK_ITEM);
+      mockPrisma.hopDong.findFirst.mockResolvedValue(null);
+      const removed = { ...MOCK_ITEM, isDelete: true };
+      mockPrisma.phong.update.mockResolvedValue(removed);
 
       const result = await service.remove(VALID_ID as any);
-      expect(result).toEqual(MOCK_ITEM);
-      expect(mockPrisma.phong.delete).toHaveBeenCalledWith(
-        { where: { phongId: VALID_ID } },
-      );
+      expect(result).toEqual(removed);
+      expect(mockPrisma.phong.update).toHaveBeenCalledWith({
+        where: { phongId: VALID_ID },
+        data: { isDelete: true },
+      });
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {
@@ -149,7 +187,8 @@ describe('PhongService', () => {
       try {
         await service.remove(INVALID_ID as any);
       } catch {}
-      expect(mockPrisma.phong.delete).not.toHaveBeenCalled();
+      expect(mockPrisma.phong.update).not.toHaveBeenCalled();
+      expect(mockThongKeSnapshot.invalidateAll).not.toHaveBeenCalled();
     });
   });
 

@@ -28,7 +28,8 @@ Loại bỏ cơ chế thời gian:
 
 - Xóa hằng số `snapshotTtlMs`.
 - Xóa điều kiện so sánh `hetHanLuc` với thời điểm hiện tại.
-- Xóa cột `hetHanLuc` khỏi model `ThongKeSnapshot`.
+- Giữ `hetHanLuc` dạng nullable để tương thích database cũ nhưng không đọc/ghi trường này trong logic thống kê.
+- Thêm `phienBan` vào snapshot và bảng singleton `ThongKeRevision` để phát hiện dữ liệu thay đổi trong lúc đang tính lại.
 - Giữ `tinhTuLuc`, `createdAt` và `updatedAt` để biết snapshot được tính lúc nào; các trường này chỉ phục vụ thông tin, không quyết định việc hết hạn.
 
 Snapshot hợp lệ khi tồn tại và có đúng cấu trúc response hiện tại. Snapshot cũ thiếu trường vẫn được tính lại.
@@ -39,7 +40,7 @@ Snapshot hợp lệ khi tồn tại và có đúng cấu trúc response hiện t
 
 Một service nội bộ, không có controller và không tạo API mới:
 
-- `invalidateAll(client)`: xóa toàn bộ record trong `thongkesnapshot` bằng Prisma client hoặc transaction client được truyền vào.
+- `invalidateAll(client)`: tăng `ThongKeRevision.phienBan` và xóa toàn bộ record trong `thongkesnapshot` bằng Prisma client hoặc transaction client được truyền vào.
 - Được export để các module dữ liệu nguồn sử dụng.
 - Được gọi trong cùng transaction với thao tác ghi dữ liệu nguồn để thay đổi dữ liệu và vô hiệu hóa snapshot là một thao tác nguyên tử.
 
@@ -50,6 +51,9 @@ Một service nội bộ, không có controller và không tạo API mới:
 - Tạo `kyThongKe` từ năm/tháng.
 - Nếu tìm thấy snapshot hợp lệ, trả `duLieu`.
 - Nếu không có hoặc cấu trúc đã cũ, gọi `tinhThongKe(dto)`, upsert snapshot rồi trả kết quả.
+- Trước khi tính, đọc revision hiện tại. Chỉ lưu snapshot nếu revision không đổi; nếu có write xen giữa thì bỏ kết quả cũ và tính lại.
+- Nếu chưa có revision (lần chạy đầu sau triển khai), xóa toàn bộ snapshot cũ trước khi lưu kết quả mới.
+- Khi trả snapshot, tính lại các phần phụ thuộc ngày gồm phòng đang thuê, người thuê có hợp đồng sắp hết và danh sách hợp đồng sắp hết hạn.
 - Không còn kiểm tra đồng hồ hoặc TTL.
 
 ## Phạm vi vô hiệu hóa
@@ -71,6 +75,8 @@ Nếu method đã dùng Prisma transaction, gọi vô hiệu hóa bằng transac
 - Thay đổi dữ liệu nguồn và xóa snapshot nằm trong cùng transaction.
 - Nếu thay đổi dữ liệu hoặc vô hiệu hóa thất bại, toàn bộ transaction rollback; không được để dữ liệu mới đi cùng snapshot cũ.
 - Chỉ trả thành công sau khi transaction hoàn tất.
+- Revision được khóa khi lưu snapshot để write transaction không thể xen vào giữa bước kiểm tra revision và upsert.
+- Nếu revision đã đổi trong lúc tính, kết quả vừa tính không được lưu và request tự tính lại bằng dữ liệu mới.
 - Hai request `GET /thong-ke` cùng lúc sau khi vô hiệu hóa có thể cùng tính lại. `upsert` theo khóa unique `kyThongKe` đảm bảo chỉ có một record cuối cùng và cả hai response đều đúng. Chưa cần thêm distributed lock ở quy mô hiện tại.
 
 ## API và tương thích
@@ -87,6 +93,8 @@ Nếu method đã dùng Prisma transaction, gọi vô hiệu hóa bằng transac
 - Trả snapshot hiện có mà không tính lại.
 - Tính và lưu snapshot khi chưa có.
 - Tính lại snapshot có cấu trúc cũ.
+- Bỏ kết quả đang tính nếu revision thay đổi và retry bằng revision mới.
+- Tính lại các phần phụ thuộc ngày khi trả snapshot có sẵn.
 - Không còn test hết hạn theo thời gian.
 
 ### Unit test vô hiệu hóa

@@ -5,6 +5,11 @@ import {
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NguoiThueService } from '../services/nguoi-thue.service';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
+
+const mockThongKeSnapshot = {
+    invalidateAll: jest.fn(),
+};
 
 const mockPrisma = {
     nguoiThue: {
@@ -17,6 +22,7 @@ const mockPrisma = {
         findMany: jest.fn(),
         findFirst: jest.fn(),
     },
+    $transaction: jest.fn(),
 };
 
 const MOCK_ITEM = {
@@ -31,15 +37,22 @@ describe('NguoiThueService', () => {
     let service: NguoiThueService;
 
     beforeEach(async () => {
+        mockPrisma.$transaction.mockImplementation((callback: any) =>
+            callback(mockPrisma),
+        );
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 NguoiThueService,
                 { provide: PrismaService, useValue: mockPrisma },
+                { provide: ThongKeSnapshotService, useValue: mockThongKeSnapshot },
             ],
         }).compile();
 
         service = module.get(NguoiThueService);
         jest.clearAllMocks();
+        mockPrisma.$transaction.mockImplementation((callback: any) =>
+            callback(mockPrisma),
+        );
     });
 
     it('được khởi tạo', () => {
@@ -104,6 +117,9 @@ describe('NguoiThueService', () => {
                 ngaySinh: new Date('2000-01-15'),
             },
         });
+        expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+        expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+        expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('cập nhật sau khi xác nhận người thuê tồn tại', async () => {
@@ -114,6 +130,8 @@ describe('NguoiThueService', () => {
         await expect(
             service.update(1, { sdt: '0999999999' }),
         ).resolves.toEqual(updated);
+        expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+        expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('xóa mềm người thuê không có hợp đồng hoạt động', async () => {
@@ -130,6 +148,8 @@ describe('NguoiThueService', () => {
             where: { idnt: 1 },
             data: { isDelete: true },
         });
+        expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledTimes(1);
+        expect(mockThongKeSnapshot.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('không xóa người thuê đang có hợp đồng hoạt động', async () => {
@@ -138,11 +158,22 @@ describe('NguoiThueService', () => {
 
         await expect(service.remove(1)).rejects.toThrow(BadRequestException);
         expect(mockPrisma.nguoiThue.update).not.toHaveBeenCalled();
+        expect(mockThongKeSnapshot.invalidateAll).not.toHaveBeenCalled();
     });
 
     it('báo lỗi xóa khi người thuê không tồn tại', async () => {
         mockPrisma.nguoiThue.findUnique.mockResolvedValue(null);
 
         await expect(service.remove(9999)).rejects.toThrow(NotFoundException);
+        expect(mockThongKeSnapshot.invalidateAll).not.toHaveBeenCalled();
+    });
+
+    it('không vô hiệu hóa snapshot khi ghi dữ liệu thất bại', async () => {
+        mockPrisma.nguoiThue.create.mockRejectedValue(new Error('write failed'));
+
+        await expect(
+            service.create({ hoTen: 'Nguyễn Văn A' }),
+        ).rejects.toThrow('write failed');
+        expect(mockThongKeSnapshot.invalidateAll).not.toHaveBeenCalled();
     });
 });

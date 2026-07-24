@@ -2,9 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { SuaChuaService } from '../services/sua-chua.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotFoundException } from '@nestjs/common';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
 
 // ─── Mock Prisma ─────────────────────────────────────────────────────
-const mockPrisma = {
+const mockPrisma: any = {
+  $transaction: jest.fn((callback: any) => callback(mockPrisma)),
   suaChua: {
     findMany:  jest.fn(),
     findFirst: jest.fn(),
@@ -12,6 +14,9 @@ const mockPrisma = {
     update:    jest.fn(),
     count:     jest.fn(),
   },
+};
+const mockThongKeSnapshotService = {
+  invalidateAll: jest.fn(),
 };
 
 // ─── Fixtures ────────────────────────────────────────────────────────
@@ -29,6 +34,7 @@ describe('SuaChuaService', () => {
       providers: [
         SuaChuaService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: ThongKeSnapshotService, useValue: mockThongKeSnapshotService },
       ],
     }).compile();
 
@@ -83,17 +89,29 @@ describe('SuaChuaService', () => {
   describe('create()', () => {
     it('tạo mới và trả về record', async () => {
       mockPrisma.suaChua.create.mockResolvedValue(MOCK_ITEM);
+      mockPrisma.suaChua.findFirst.mockResolvedValue(MOCK_ITEM);
       const result = await service.create(CREATE_DTO as any);
       expect(result).toEqual(MOCK_ITEM);
       expect(mockPrisma.suaChua.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: CREATE_DTO }),
       );
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('gọi prisma.create đúng 1 lần', async () => {
       mockPrisma.suaChua.create.mockResolvedValue(MOCK_ITEM);
+      mockPrisma.suaChua.findFirst.mockResolvedValue(MOCK_ITEM);
       await service.create(CREATE_DTO as any);
       expect(mockPrisma.suaChua.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('không invalidate khi lệnh ghi thất bại', async () => {
+      mockPrisma.suaChua.create.mockRejectedValue(new Error('write failed'));
+
+      await expect(service.create(CREATE_DTO as any)).rejects.toThrow('write failed');
+
+      expect(mockThongKeSnapshotService.invalidateAll).not.toHaveBeenCalled();
     });
   });
 
@@ -103,12 +121,15 @@ describe('SuaChuaService', () => {
       const updated = { ...MOCK_ITEM, ...UPDATE_DTO };
       mockPrisma.suaChua.findFirst.mockResolvedValue(MOCK_ITEM);
       mockPrisma.suaChua.update.mockResolvedValue(updated);
+      mockPrisma.suaChua.findFirst.mockResolvedValue(updated);
 
       const result = await service.update(VALID_ID as any, UPDATE_DTO as any);
       expect(result).toEqual(updated);
       expect(mockPrisma.suaChua.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: VALID_ID } }),
       );
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {
@@ -123,6 +144,7 @@ describe('SuaChuaService', () => {
         await service.update(INVALID_ID as any, UPDATE_DTO as any);
       } catch {}
       expect(mockPrisma.suaChua.update).not.toHaveBeenCalled();
+      expect(mockThongKeSnapshotService.invalidateAll).not.toHaveBeenCalled();
     });
   });
 
@@ -137,6 +159,8 @@ describe('SuaChuaService', () => {
       expect(mockPrisma.suaChua.update).toHaveBeenCalledWith(
         { where: { id: VALID_ID }, data: { isDelete: true } },
       );
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {

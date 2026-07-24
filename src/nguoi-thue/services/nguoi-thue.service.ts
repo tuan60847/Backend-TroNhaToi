@@ -2,10 +2,14 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateNguoiThueDto } from '../dto/create-nguoi-thue.dto';
 import { UpdateNguoiThueDto } from '../dto/update-nguoi-thue.dto';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
 
 @Injectable()
 export class NguoiThueService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private thongKeSnapshotService: ThongKeSnapshotService,
+  ) { }
 
   //Lấy tất cả người thuê bao gồm những người vừa thêm vào và chưa có hợp đồng nào và sắp xếp đẩy người mới thêm lên đầu
   async findAllNguoiThue() {
@@ -58,11 +62,15 @@ export class NguoiThueService {
   }
 
   create(dto: CreateNguoiThueDto) {
-    return this.prisma.nguoiThue.create({
-      data: {
-        ...dto,
-        ngaySinh: dto.ngaySinh ? new Date(dto.ngaySinh) : null,
-      } as any,
+    return this.prisma.$transaction(async (tx) => {
+      const nguoiThue = await tx.nguoiThue.create({
+        data: {
+          ...dto,
+          ngaySinh: dto.ngaySinh ? new Date(dto.ngaySinh) : null,
+        } as any,
+      });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return nguoiThue;
     });
   }
 
@@ -84,9 +92,13 @@ export class NguoiThueService {
     };
 
     //Tiến hành cập nhật thông tin dữ liệu xuống Database
-    return this.prisma.nguoiThue.update({
-      where: { idnt: id },
-      data: updateData as any,
+    return this.prisma.$transaction(async (tx) => {
+      const nguoiThue = await tx.nguoiThue.update({
+        where: { idnt: id },
+        data: updateData as any,
+      });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return nguoiThue;
     });
   }
 
@@ -103,9 +115,13 @@ export class NguoiThueService {
     if (hasHopDong) {
       throw new BadRequestException(`Không thể xóa người thuê có hợp đồng đang hoạt động`);
     }
-    return await this.prisma.nguoiThue.update({
-      where: { idnt: id },
-      data: { isDelete: true },
+    return this.prisma.$transaction(async (tx) => {
+      const nguoiThue = await tx.nguoiThue.update({
+        where: { idnt: id },
+        data: { isDelete: true },
+      });
+      await this.thongKeSnapshotService.invalidateAll(tx);
+      return nguoiThue;
     });
   }
 

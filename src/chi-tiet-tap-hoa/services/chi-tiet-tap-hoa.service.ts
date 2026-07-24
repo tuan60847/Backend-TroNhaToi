@@ -2,10 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateChiTietTapHoaDto } from '../dto/create-chi-tiet-tap-hoa.dto';
 import { UpdateChiTietTapHoaDto } from '../dto/update-chi-tiet-tap-hoa.dto';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
 
 @Injectable()
 export class ChiTietTapHoaService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private thongKeSnapshot: ThongKeSnapshotService,
+  ) {}
 
   findAll() {
     return this.prisma.chiTietTapHoa.findMany({
@@ -23,17 +27,34 @@ export class ChiTietTapHoaService {
   }
 
   create(dto: CreateChiTietTapHoaDto) {
-    return this.prisma.chiTietTapHoa.create({ data: dto as any });
+    return this.prisma.$transaction(async (tx) => {
+      const result = await tx.chiTietTapHoa.create({ data: dto as any });
+      await this.thongKeSnapshot.invalidateAll(tx);
+      return result;
+    });
   }
 
   async update(id: number, dto: UpdateChiTietTapHoaDto) {
     await this.findOne(id);
-    return this.prisma.chiTietTapHoa.update({ where: { maChiTietHoaDon: id }, data: dto as any });
+    return this.prisma.$transaction(async (tx) => {
+      const result = await tx.chiTietTapHoa.update({
+        where: { maChiTietHoaDon: id },
+        data: dto as any,
+      });
+      await this.thongKeSnapshot.invalidateAll(tx);
+      return result;
+    });
   }
 
   async remove(id: number) {
     await this.findOne(id);
-    return this.prisma.chiTietTapHoa.delete({ where: { maChiTietHoaDon: id } });
+    return this.prisma.$transaction(async (tx) => {
+      const result = await tx.chiTietTapHoa.delete({
+        where: { maChiTietHoaDon: id },
+      });
+      await this.thongKeSnapshot.invalidateAll(tx);
+      return result;
+    });
   }
 
   async findByMaHoaDon(maHoaDon: string) {

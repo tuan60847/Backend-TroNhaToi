@@ -5,10 +5,14 @@ import { UpdateHoaDonPhongDto } from '../dto/update-hoa-don-phong.dto';
 import { SearchHoaDonPhongDto } from '../dto/search-hoa-don-phong.dto';
 import { StatisticsHoaDonPhongDto } from '../dto/statistics-hoa-don-phong.dto';
 import { generateId } from '../../common/utils/generate-id.util';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
 
 @Injectable()
 export class HoaDonPhongService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private thongKeSnapshot: ThongKeSnapshotService,
+  ) {}
 
   findAll() {
     return this.prisma.hoaDonPhong.findMany({
@@ -27,19 +31,37 @@ export class HoaDonPhongService {
   }
 
   create(dto: CreateHoaDonPhongDto) {
-    return this.prisma.hoaDonPhong.create({
-      data: { maHoaDon: generateId('HDP', 23), ...dto } as any,
+    return this.prisma.$transaction(async (tx) => {
+      const result = await tx.hoaDonPhong.create({
+        data: { maHoaDon: generateId('HDP', 23), ...dto } as any,
+      });
+      await this.thongKeSnapshot.invalidateAll(tx);
+      return result;
     });
   }
 
   async update(id: string, dto: UpdateHoaDonPhongDto) {
     await this.findOne(id);
-    return this.prisma.hoaDonPhong.update({ where: { maHoaDon: id }, data: dto as any });
+    return this.prisma.$transaction(async (tx) => {
+      const result = await tx.hoaDonPhong.update({
+        where: { maHoaDon: id },
+        data: dto as any,
+      });
+      await this.thongKeSnapshot.invalidateAll(tx);
+      return result;
+    });
   }
 
   async remove(id: string) {
     await this.findOne(id);
-    return this.prisma.hoaDonPhong.update({ where: { maHoaDon: id }, data: { isDelete: true } });
+    return this.prisma.$transaction(async (tx) => {
+      const result = await tx.hoaDonPhong.update({
+        where: { maHoaDon: id },
+        data: { isDelete: true },
+      });
+      await this.thongKeSnapshot.invalidateAll(tx);
+      return result;
+    });
   }
   async search(req: SearchHoaDonPhongDto) {
     const { ma, limit = 10, offset = 0, sortBy = 'maHoaDon', sort = 'desc' } = req;

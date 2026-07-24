@@ -2,9 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { HangHoaService } from '../services/hang-hoa.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotFoundException } from '@nestjs/common';
+import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
 
 // ─── Mock Prisma ─────────────────────────────────────────────────────
-const mockPrisma = {
+const mockPrisma: any = {
+  $transaction: jest.fn((callback: any) => callback(mockPrisma)),
   hangHoa: {
     findMany:  jest.fn(),
     findFirst: jest.fn(),
@@ -12,6 +14,9 @@ const mockPrisma = {
     update:    jest.fn(),
     count:     jest.fn(),
   },
+};
+const mockThongKeSnapshotService = {
+  invalidateAll: jest.fn(),
 };
 
 // ─── Fixtures ────────────────────────────────────────────────────────
@@ -29,6 +34,7 @@ describe('HangHoaService', () => {
       providers: [
         HangHoaService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: ThongKeSnapshotService, useValue: mockThongKeSnapshotService },
       ],
     }).compile();
 
@@ -88,12 +94,22 @@ describe('HangHoaService', () => {
       expect(mockPrisma.hangHoa.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: CREATE_DTO }),
       );
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('gọi prisma.create đúng 1 lần', async () => {
       mockPrisma.hangHoa.create.mockResolvedValue(MOCK_ITEM);
       await service.create(CREATE_DTO as any);
       expect(mockPrisma.hangHoa.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('không invalidate khi lệnh ghi thất bại', async () => {
+      mockPrisma.hangHoa.create.mockRejectedValue(new Error('write failed'));
+
+      await expect(service.create(CREATE_DTO as any)).rejects.toThrow('write failed');
+
+      expect(mockThongKeSnapshotService.invalidateAll).not.toHaveBeenCalled();
     });
   });
 
@@ -109,6 +125,8 @@ describe('HangHoaService', () => {
       expect(mockPrisma.hangHoa.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { maHangHoa: VALID_ID } }),
       );
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {
@@ -123,6 +141,7 @@ describe('HangHoaService', () => {
         await service.update(INVALID_ID as any, UPDATE_DTO as any);
       } catch {}
       expect(mockPrisma.hangHoa.update).not.toHaveBeenCalled();
+      expect(mockThongKeSnapshotService.invalidateAll).not.toHaveBeenCalled();
     });
   });
 
@@ -137,6 +156,8 @@ describe('HangHoaService', () => {
       expect(mockPrisma.hangHoa.update).toHaveBeenCalledWith(
         { where: { maHangHoa: VALID_ID }, data: { isDelete: true } },
       );
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledTimes(1);
+      expect(mockThongKeSnapshotService.invalidateAll).toHaveBeenCalledWith(mockPrisma);
     });
 
     it('ném NotFoundException khi record không tồn tại', async () => {
