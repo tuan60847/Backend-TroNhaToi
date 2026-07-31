@@ -1,28 +1,21 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNumber, IsOptional, IsString } from 'class-validator';
-import { PartialType } from '@nestjs/mapped-types';
+import { IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreatePhieuThuHangThangDto {
-  @ApiPropertyOptional({ description: 'Ngày thu (YYYY-MM-DD)' })
-  @IsOptional()
+  @ApiProperty({ description: 'Mã hóa đơn phòng', example: 'HD-202607-1-2-072026' })
+  @IsNotEmpty({ message: 'Mã hóa đơn không được để trống' })
   @IsString()
-  ngayThu?: string;
+  maHoaDon: string;
 
-  @ApiPropertyOptional({ description: 'Số tiền' })
-  @IsOptional()
-  @IsNumber()
-  soTien?: number;
+  @ApiProperty({ description: 'Số tiền thu đợt này', example: 500000 })
+  @Type(() => Number)
+  @IsNumber({}, { message: 'Số tiền phải là chữ số' })
+  @Min(1000, { message: 'Số tiền thu tối thiểu là 1.000đ' })
+  soTien: number;
 
-  @ApiPropertyOptional({ description: 'Ghi chú' })
+  @ApiPropertyOptional({ description: 'Ghi chú thu tiền', example: 'Khách chuyển khoản VCB' })
   @IsOptional()
   @IsString()
   ghiChu?: string;
-
-  @ApiPropertyOptional({ description: 'Mã hóa đơn phòng' })
-  @IsOptional()
-  @IsString()
-  maHoaDon?: string;
-
 }
-
-export class UpdatePhieuThuHangThangDto extends PartialType(CreatePhieuThuHangThangDto) {}

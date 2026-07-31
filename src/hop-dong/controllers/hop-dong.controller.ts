@@ -112,4 +112,14 @@ export class HopDongController {
   remove(@Param('hopDongId') id: string) {
     return this.hopDongService.remove(id);
   }
+  @Post(':hopDongId/cancel')
+  @ApiOperation({ summary: 'Xóa Hợp Đồng' })
+  cancelContract(@Param('hopDongId') id: string) {
+    return this.hopDongService.cancelContract(id);
+  }
+  @Post(':hopDongId/terminate')
+  @ApiOperation({ summary: 'Kết thúc hợp đồng đang hoạt động (trạng thái 1), check công nợ và chốt ngày trả phòng' })
+  terminateContract(@Param('hopDongId') id: string) {
+    return this.hopDongService.terminateContract(id);
+  }
 }

@@ -20,7 +20,7 @@ export class HoaDonGuiXeController {
     return this.hoaDonGuiXeService.create(dto);
   }
 
-  @Get()
+  @Get('getds') 
   @ApiOperation({ summary: 'Danh sách Hóa Đơn Gửi Xe' })
   findAll() {
     return this.hoaDonGuiXeService.findAll();
@@ -52,11 +52,6 @@ export class HoaDonGuiXeController {
     return this.hoaDonGuiXeService.findOne(id);
   }
 
-  @Patch(':maHoaDon')
-  @ApiOperation({ summary: 'Cập nhật Hóa Đơn Gửi Xe' })
-  update(@Param('maHoaDon', ParseIntPipe) id: number, @Body() dto: UpdateHoaDonGuiXeDto) {
-    return this.hoaDonGuiXeService.update(id, dto);
-  }
 
   @Delete(':maHoaDon')
   @ApiOperation({ summary: 'Xóa Hóa Đơn Gửi Xe' })

@@ -13,17 +13,15 @@ export class HoaDonGuiXeService {
     private thongKeSnapshot: ThongKeSnapshotService,
   ) {}
 
-  findAll() {
+ findAll() {
     return this.prisma.hoaDonGuiXe.findMany({
       where: { isDelete: false },
-      //include: { phuongTien: { include: { nguoiThue: true } } },
     });
   }
 
-  async findOne(id: number) {
+ async findOne(id: number) {
     const item = await this.prisma.hoaDonGuiXe.findFirst({
       where: { maHoaDon: id, isDelete: false },
-      //include: { phuongTien: { include: { nguoiThue: true } } },
     });
     if (!item) throw new NotFoundException(`HoaDonGuiXe với id ${id} không tồn tại`);
     return item;
@@ -37,7 +35,7 @@ export class HoaDonGuiXeService {
     });
   }
 
-  async update(id: number, dto: UpdateHoaDonGuiXeDto) {
+async update(id: number, dto: UpdateHoaDonGuiXeDto) {
     await this.findOne(id);
     return this.prisma.$transaction(async (tx) => {
       const result = await tx.hoaDonGuiXe.update({
@@ -48,7 +46,6 @@ export class HoaDonGuiXeService {
       return result;
     });
   }
-
   async remove(id: number) {
     await this.findOne(id);
     return this.prisma.$transaction(async (tx) => {

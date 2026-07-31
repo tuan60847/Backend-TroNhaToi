@@ -150,7 +150,6 @@ export class ThietBiService {
 
   //LẤY DANH SÁCH LẮP RÁP THIẾT BỊ THEO PHÒNG
   async getThietBiByPhongId(phongId: number) {
-   
     const phong = await this.prisma.phong.findFirst({
       where: { phongId, isDelete: false },
     });
@@ -159,27 +158,64 @@ export class ThietBiService {
       throw new NotFoundException(`Phòng với ID ${phongId} không tồn tại`);
     }
 
-    const dsLapRap = await this.prisma.lapRap.findMany({
-      where: {
-        phongId,
-        isDelete: false,
-        thietbi: {
-          isDelete: false, // Chỉ lấy thiết bị chưa bị xóa
+    const [dsLapRap, dsSuaChua] = await Promise.all([
+      this.prisma.lapRap.findMany({
+        where: {
+          phongId,
+          isDelete: false,
+          thietbi: { isDelete: false },
         },
-      },
-      include: {
-        thietbi: true,
-      },
-      orderBy: {
-        id: 'desc',
-      },
-    });
+        include: { thietbi: true },
+        orderBy: { id: 'desc' },
+      }),
+
+      this.prisma.suaChua.findMany({
+        where: {
+          phongId,
+          isDelete: false,
+        },
+        include: {
+          hoadonsuachua: true,
+        },
+      }),
+    ]);
+
+    const thongKeSuaChua = new Map<number, { dangSua: number; hong: number }>();
+
+    for (const sc of dsSuaChua) {
+      if (sc.thietBiId == null) continue;
+
+      // Coi hóa đơn đã bị xóa như KHÔNG có hóa đơn
+      const hoaDon =
+        sc.hoadonsuachua && !sc.hoadonsuachua.isDelete
+          ? sc.hoadonsuachua
+          : null;
+
+      const current =
+        thongKeSuaChua.get(sc.thietBiId) ?? { dangSua: 0, hong: 0 };
+
+      if (hoaDon?.trangThai === 3) {
+        current.hong += 1;
+      } else if (!hoaDon || hoaDon.trangThai === 0) {
+        current.dangSua += 1;
+      }
+      // trangThai === 1 hoặc 2: không tính vào đang sửa/hỏng
+
+      thongKeSuaChua.set(sc.thietBiId, current);
+    }
 
     return dsLapRap.map((item) => {
       const { thietbi, isDelete, ...lapRapRest } = item;
+
+      const thongKe = thietbi
+        ? (thongKeSuaChua.get(thietbi.thietBiId) ?? { dangSua: 0, hong: 0 })
+        : { dangSua: 0, hong: 0 };
+
       return {
         ...lapRapRest,
         thietBi: thietbi ? this.transform(thietbi) : null,
+        soLuongDangSua: thongKe.dangSua,
+        soLuongHong: thongKe.hong,
       };
     });
   }

@@ -269,7 +269,8 @@ export class ThongKeService {
     };
   }
 
-  /**
+
+  /*
    * ==========================================
    * TỔNG ĐÃ THU
    * ==========================================
@@ -277,7 +278,7 @@ export class ThongKeService {
   private async getTongDaThu(dto: ThongKeQueryDto) {
     const { from, to } = this.getDateRange(dto);
 
-    const [thuPhong, thuTapHoa] = await Promise.all([
+    const [thuPhong, thuTapHoa, thuGuiXe /*, thuDienNuoc */] = await Promise.all([
       this.prisma.phieuThuHangThang.aggregate({
         _sum: {
           soTien: true,
@@ -303,16 +304,47 @@ export class ThongKeService {
           },
         },
       }),
+
+      // Đã thu gửi xe: tạm tính theo hóa đơn gửi xe trong khoảng thời gian
+      this.prisma.hoaDonGuiXe.aggregate({
+        _sum: {
+          soTien: true,
+        },
+        where: {
+          isDelete: false,
+          TrangThai: 1,
+          thangNam: this.getThangNam(dto)
+            ? this.getThangNam(dto)
+            : { endsWith: `${dto.nam}` },
+        },
+      }),
+
+
+      // this.prisma.phieuThuDienNuoc.aggregate({
+      //   _sum: {
+      //     soTien: true,
+      //   },
+      //   where: {
+      //     isDelete: false,
+      //     ngayThu: {
+      //       gte: from,
+      //       lte: to,
+      //     },
+      //   },
+      // }),
     ]);
 
     const daThuPhong = this.toNumber(thuPhong._sum.soTien);
-
     const daThuTapHoa = this.toNumber(thuTapHoa._sum.soTien);
+    const daThuGuiXe = this.toNumber(thuGuiXe._sum.soTien);
+    // const daThuDienNuoc = this.toNumber(thuDienNuoc._sum.soTien);
 
     return {
       daThuPhong,
       daThuTapHoa,
-      tongDaThu: daThuPhong + daThuTapHoa,
+      daThuGuiXe,
+      // daThuDienNuoc,
+      tongDaThu: daThuPhong + daThuTapHoa + daThuGuiXe,
     };
   }
 
@@ -348,6 +380,10 @@ export class ThongKeService {
         },
         where: {
           isDelete: false,
+          trangThai: 2, // chỉ tính hoá đơn đã thanh toán
+          suachua: {
+            isDelete: false, // tránh tính hoá đơn của bản ghi sửa chữa đã bị xoá
+          },
           ngayLapHoaDonSc: {
             gte: from,
             lte: to,
@@ -375,12 +411,12 @@ export class ThongKeService {
       0,
     );
 
-    const tongTienSuaChua = this.toNumber(hoaDonSuaChua._sum.giaTien) + tongTienMuaThietBi;
-
+    const tongTienSuaChua = this.toNumber(hoaDonSuaChua._sum.giaTien);
+    console.log(tongTienSuaChua);
     return {
       tongChiPhi: tongTienSuaChua + tongTienMuaThietBi,
-      tongTienSuaChua,
-      tongTienMuaThietBi,
+      tongTienSuaChua: tongTienSuaChua,
+      tongTienMuaThietBi: tongTienMuaThietBi,
     };
   }
 
@@ -488,54 +524,106 @@ export class ThongKeService {
    * THỐNG KÊ THIẾT BỊ
    * ==========================================
    */
+  // private async getThongKeThietBi() {
+  //   const [
+  //     tongThietBi,
+  //     thietBiHoatDong,
+  //     thietBiDangSua,
+  //     thietBiHong,
+  //     tongLapRap,
+  //     tongSuaChua,
+  //   ] = await Promise.all([
+  //     this.prisma.thietBi.count({
+  //       where: {
+  //         isDelete: false,
+  //       },
+  //     }),
+
+  //     this.prisma.thietBi.count({
+  //       where: {
+  //         isDelete: false,
+  //         trangThai: 0,
+  //       },
+  //     }),
+
+  //     this.prisma.thietBi.count({
+  //       where: {
+  //         isDelete: false,
+  //         trangThai: 1,
+  //       },
+  //     }),
+
+  //     this.prisma.thietBi.count({
+  //       where: {
+  //         isDelete: false,
+  //         trangThai: 2,
+  //       },
+  //     }),
+
+  //     this.prisma.lapRap.count({
+  //       where: {
+  //         isDelete: false,
+  //       },
+  //     }),
+
+  //     this.prisma.suaChua.count({
+  //       where: {
+  //         isDelete: false,
+  //       },
+  //     }),
+  //   ]);
+
+  //   return {
+  //     tongThietBi,
+  //     thietBiHoatDong,
+  //     thietBiDangSua,
+  //     thietBiHong,
+  //     tongLapRap,
+  //     tongSuaChua,
+  //   };
+  // }
   private async getThongKeThietBi() {
-    const [
-      tongThietBi,
-      thietBiHoatDong,
-      thietBiDangSua,
-      thietBiHong,
-      tongLapRap,
-      tongSuaChua,
-    ] = await Promise.all([
-      this.prisma.thietBi.count({
-        where: {
-          isDelete: false,
-        },
+    const [tongMuaAgg, dsSuaChua, tongLapRap, tongSuaChua] = await Promise.all([
+      // Tổng thiết bị = tổng soLuong trong lịch sử mua thiết bị
+      this.prisma.lichSuMuaThietBi.aggregate({
+        where: { isDelete: false },
+        _sum: { soLuong: true },
       }),
 
-      this.prisma.thietBi.count({
-        where: {
-          isDelete: false,
-          trangThai: 0,
-        },
-      }),
-
-      this.prisma.thietBi.count({
-        where: {
-          isDelete: false,
-          trangThai: 1,
-        },
-      }),
-
-      this.prisma.thietBi.count({
-        where: {
-          isDelete: false,
-          trangThai: 2,
-        },
+      // Lấy tất cả bản ghi sửa chữa (còn hiệu lực) kèm hóa đơn để tính đang sửa / hỏng
+      this.prisma.suaChua.findMany({
+        where: { isDelete: false },
+        include: { hoadonsuachua: true },
       }),
 
       this.prisma.lapRap.count({
-        where: {
-          isDelete: false,
-        },
+        where: { isDelete: false },
       }),
 
       this.prisma.suaChua.count({
-        where: {
-          isDelete: false,
-        },
+        where: { isDelete: false },
       }),
     ]);
+
+    const tongThietBi = tongMuaAgg._sum.soLuong ?? 0;
+
+    // Đếm đang sửa / hỏng theo cùng logic đã dùng ở các hàm trước
+    let thietBiDangSua = 0;
+    let thietBiHong = 0;
+
+    for (const sc of dsSuaChua) {
+      const hoaDon =
+        sc.hoadonsuachua && !sc.hoadonsuachua.isDelete ? sc.hoadonsuachua : null;
+
+      if (hoaDon?.trangThai === 3) {
+        thietBiHong += 1;
+      } else if (!hoaDon || hoaDon.trangThai === 0) {
+        thietBiDangSua += 1;
+      }
+      // trangThai === 1 hoặc 2: không tính vào đang sửa/hỏng
+    }
+
+    const thietBiHoatDong = tongThietBi - thietBiDangSua - thietBiHong;
 
     return {
       tongThietBi,
@@ -619,7 +707,7 @@ export class ThongKeService {
 
   /**
    * ==========================================
-   * TOP
+   * TOP  PHÒNG DOANH THU CAO NHẤT
    * ==========================================
    */
 
@@ -643,7 +731,7 @@ export class ThongKeService {
           },
           select: { soTien: true },
         },
-        hopdong: {
+        hopDong: {
           select: {
             phongId: true,
             phong: {
@@ -669,14 +757,17 @@ export class ThongKeService {
     >();
 
     for (const invoice of invoices) {
-      const room = invoice.hopdong?.phong;
+      const room = invoice.hopDong?.phong;
       if (!room) continue;
 
       const revenue = this.toNumber(invoice.soTien);
-      const collected = invoice.phieuThuHangThang.reduce(
-        (sum, receipt) => sum + this.toNumber(receipt.soTien),
-        0,
-      );
+      // const collected = invoice.phieuThuHangThang.reduce(
+      //   (sum, receipt) => sum + this.toNumber(receipt.soTien),
+      //   0,
+      // );
+      const phieuThu = invoice.phieuThuHangThang;
+      const collected = phieuThu ? Number(phieuThu.soTien ?? 0) : 0;
+
       const current = rooms.get(room.phongId) ?? {
         phongId: room.phongId,
         tenPhong: room.tenPhong,
@@ -712,17 +803,12 @@ export class ThongKeService {
             : { thangNam: { endsWith: `${dto.nam}` } }),
         },
         select: {
+          maHoaDon: true,
           soTien: true,
-          phieuThuHangThang: {
-            where: {
-              isDelete: false,
-              ngayThu: { gte: from, lte: to },
-            },
-            select: { soTien: true },
-          },
-          hopdong: {
+          thangNam: true,
+          trangThai: true,
+          hopDong: {
             select: {
-              idnt: true,
               nguoithue: {
                 select: {
                   idnt: true,
@@ -730,6 +816,10 @@ export class ThongKeService {
                 },
               },
             },
+          },
+          phieuThuHangThang: {
+            where: { isDelete: false },
+            select: { soTien: true },
           },
         },
       }),
@@ -788,14 +878,25 @@ export class ThongKeService {
       tenants.set(tenant.idnt, current);
     };
 
+    // Gom nợ hóa đơn phòng cá nhân
+    // for (const invoice of roomInvoices) {
+    //   addDebt(
+    //     invoice.hopDong?.nguoithue,
+    //     this.toNumber(invoice.soTien),
+    //     (invoice.phieuThuHangThang || []).reduce(
+    //       (sum, phieu) => sum + this.toNumber(phieu.soTien),
+    //       0,
+    //     ),
+    //   );
+    // }
     for (const invoice of roomInvoices) {
+      const phieuThu = invoice.phieuThuHangThang;
+      const collected = phieuThu ? this.toNumber(phieuThu.soTien) : 0;
+
       addDebt(
-        invoice.hopdong?.nguoithue,
+        invoice.hopDong?.nguoithue,
         this.toNumber(invoice.soTien),
-        invoice.phieuThuHangThang.reduce(
-          (sum, receipt) => sum + this.toNumber(receipt.soTien),
-          0,
-        ),
+        collected,
       );
     }
 
@@ -987,7 +1088,7 @@ export class ThongKeService {
 
   /**
    * ==========================================
-   * API
+   * API  TÍNH THỐNG KÊ
    * ==========================================
    */
 

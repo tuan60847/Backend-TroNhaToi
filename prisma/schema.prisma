@@ -74,7 +74,7 @@ model HopDong {
   ghiChu         String?       @db.Text
   anhHopDong     String?       @db.Text
   isDelete       Boolean       @default(false)
-  hoadonphong    HoaDonPhong[]
+  hoaDonPhong    HoaDonPhong[]
   nguoithue      NguoiThue     @relation(fields: [idnt], references: [idnt], onUpdate: Restrict, map: "HopDong_Fk1")
   phong          Phong?        @relation(fields: [phongId], references: [phongId], onDelete: Restrict, onUpdate: Restrict, map: "HopDong_Fk2")
 
@@ -92,6 +92,9 @@ model DienNuoc {
   chiSoDienMoi Int      @default(0)
   chiSoNuocCu  Int      @default(0)
   chiSoNuocMoi Int      @default(0)
+
+  giaDienApDung Float?   @map("gia_dien_ap_dung")
+  giaNuocApDung Float?   @map("gia_nuoc_ap_dung")
   
   anhDienCu    String?  @db.VarChar(255)
   anhDienMoi   String?  @db.VarChar(255)
@@ -102,22 +105,50 @@ model DienNuoc {
   TrangThai    Int      @default(0)     // 0: Chưa tạo hóa đơn, 1: Đã tạo hóa đơn
     
   phong        Phong    @relation(fields: [phongId], references: [phongId], onDelete: Cascade, onUpdate: NoAction, map: "diennuoc_ibfk_1")
-
+  phieuThuDienNuoc PhieuThuDienNuoc?
+   
   //Bộ Khóa chính
   @@id([phongId, thangNam, lanGhi])
   @@map("diennuoc")
 }
 
+model PhieuThuDienNuoc {
+  phieuThuDienNuocId Int @id @default(autoincrement()) @map("PhieuThuDienNuocID")
+
+  phongId  Int    @map("PhongID")
+  thangNam String @db.VarChar(20)
+  lanGhi   Int
+
+  ngayThu DateTime @default(now())
+  soTien  Decimal  @db.Decimal(12,2)
+
+  ghiChu   String? @db.VarChar(255)
+  isDelete Boolean @default(false)
+
+  dienNuoc DienNuoc @relation(fields: [phongId, thangNam, lanGhi], references: [phongId, thangNam, lanGhi], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([phongId, thangNam, lanGhi])
+  @@map("phieuthudiennuoc")
+}
+
 model HoaDonPhong {
   maHoaDon          String              @id @db.Char(23)
-  thangNam          String?             @db.VarChar(20)
-  soTien            Decimal?            @db.Decimal(10, 2)
   hopDongId         String?             @map("HopDongID") @db.VarChar(30)
-  isDelete          Boolean             @default(false)
-  hopdong           HopDong?            @relation(fields: [hopDongId], references: [hopDongId], onDelete: Restrict, onUpdate: Restrict, map: "HoaDonPhong_HopDong")
-  phieuThuHangThang PhieuThuHangThang[]
+  thangNam          String?             @db.VarChar(20)
+  ngayLap           DateTime?           @default(now())
 
-  @@index([hopDongId], map: "HoaDonPhong_HopDong")
+  soTien            Decimal?            @db.Decimal(10, 2)
+  chiTietJson       String?             @db.Text
+
+
+  trangThai         Int?      @default(0) // 0: Chưa thanh toán 2: Đã thanh toán
+  ghiChu            String?   @db.Text
+  isDelete          Boolean             @default(false)
+
+  hopDong           HopDong?             @relation(fields: [hopDongId], references: [hopDongId], onDelete: Restrict, onUpdate: Restrict, map: "HoaDonHangThang_HopDong")   
+ phieuThuHangThang PhieuThuHangThang?
+
+  @@index([hopDongId], map: "HopDongID")  
   @@map("hoadonphong")
 }
 
@@ -126,9 +157,9 @@ model PhieuThuHangThang {
   ngayThu     DateTime?    @db.Date
   soTien      Decimal?     @db.Decimal(10, 2)
   ghiChu      String?      @db.Text
-  maHoaDon    String?      @db.Char(23)
+  maHoaDon     String?      @unique @db.Char(23)
   isDelete    Boolean      @default(false)
-  hoaDonPhong HoaDonPhong? @relation(fields: [maHoaDon], references: [maHoaDon], onDelete: Restrict, onUpdate: Restrict, map: "phieuthuhangthang_ibfk_1")
+  hoaDonPhong  HoaDonPhong? @relation(fields: [maHoaDon], references: [maHoaDon], onDelete: Restrict, onUpdate: Restrict, map: "phieuthuhangthang_ibfk_1")
 
   @@index([maHoaDon], map: "phieuthuhangthang_ibfk_1")
   @@map("phieuthuhangthang")
@@ -344,7 +375,7 @@ model ThongKeSnapshot {
   hetHanLuc   DateTime? @db.DateTime(3)
   createdAt   DateTime @default(now()) @db.DateTime(3)
   updatedAt   DateTime @updatedAt @db.DateTime(3)
-
+  
   @@index([nam, thang])
   @@map("thongkesnapshot")
 }
@@ -356,6 +387,7 @@ model ThongKeRevision {
 
   @@map("thongkerevision")
 }
+
 model CauHinhGia {
   id        Int      @id @default(autoincrement()) @map("id")
   giaDien   Float    @default(3500) @map("gia_dien")

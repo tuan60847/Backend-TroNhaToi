@@ -6,6 +6,7 @@ import { SearchHopDongDto } from '../dto/search-hop-dong.dto';
 import { generateId } from '../../common/utils/generate-id.util';
 import { GiaHanHopDongDto } from '../dto/renew-hop-dong.dto';
 import { ThongKeSnapshotService } from '../../thong-ke/services/thong-ke-snapshot.service';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class HopDongService {
@@ -147,7 +148,6 @@ export class HopDongService {
         });
 
         // Khi phòng có hợp đồng thì cập nhật lại trạng thái đang thuê
-        if (trangThaiPhong === 1) {
           await prisma.phong.update({
             where: { phongId: dto.phongId },
             data: { trangThai: 1 }, 
@@ -158,7 +158,7 @@ export class HopDongService {
             where: { idnt: dto.idnt },
             data: { trangThai: 1 },
           });
-        }
+        
 
         return {
           success: true,
@@ -250,9 +250,17 @@ if (existingHopDong.trangThai === 2) {
 
     // Nếu hợp đồng cũ đang ở trạng thái hiệu lực hoặc hết hiệu lực, thì set hợp đồng cũ thành hết hiệu lực và tạo hợp đồng mới
     return await this.prisma.$transaction(async (prisma) => {
+      // Tính toán ngày bắt đầu của hợp đồng mới từ DTO gửi lên
+     const ngayKyStr = dto.ngayKy ? new Date(dto.ngayKy).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    const ngayKyMoi = new Date(`${ngayKyStr}T00:00:00.000Z`);
+
+    // Ngày kết thúc của hợp đồng cũ = Ngày bắt đầu hợp đồng mới trừ đi 1 ngày
+   const ngayHetHanCu = new Date(ngayKyMoi);
+    ngayHetHanCu.setDate(ngayHetHanCu.getDate() - 1);
+
      await prisma.hopDong.update({
         where: { hopDongId: id },
-        data: { trangThai: 2 }, // Cập nhật hợp đồng cũ thành hết hiệu lực
+        data: { trangThai: 2,ngayHetHan: ngayHetHanCu, }, // Cập nhật hợp đồng cũ thành hết hiệu lực
       });
       const result = await this._createHopDong(prisma, dto as CreateHopDongDto, listUrlImage); // Tạo hợp đồng mới với thông tin mới
       await this.thongKeSnapshotService.invalidateAll(prisma);
@@ -332,9 +340,9 @@ if (existingHopDong.trangThai === 2) {
 
     //Ngày hết hạn mới phải LỚN HƠN ngày hết hạn hiện tại
    const ngayOnly = dto.ngayHetHanMoi.split('T')[0];
-const stringNgay = `${ngayOnly}T00:00:00.000Z`;
+  const stringNgay = `${ngayOnly}T00:00:00.000Z`;
 
-const ngayHetHanMoi = new Date(stringNgay);
+  const ngayHetHanMoi = new Date(stringNgay);
 
 
     if (ngayHetHanMoi <= ngayHetHanCu) {
@@ -385,17 +393,7 @@ const ngayHetHanMoi = new Date(stringNgay);
       },
     };
   }
-//--------------------------------------------------------------------------------
- async findOne(id: string) {
-    const item = await this.prisma.hopDong.findFirst({
-      where: { hopDongId: id, isDelete: false },
-      //include: { nguoiThue: true, phong: { include: { loaiPhong: true } }, hoaDonPhong: true },
-    });
-    if (!item) throw new NotFoundException(`HopDong với id ${id} không tồn tại`);
-    return item;
-  }
-
-  async remove(id: string) {
+   async remove(id: string) {
     await this.findOne(id);
     return this.prisma.$transaction(async (prisma) => {
       const hopDong = await prisma.hopDong.update({
@@ -406,6 +404,262 @@ const ngayHetHanMoi = new Date(stringNgay);
       return hopDong;
     });
   }
+ async findOne(id: string) {
+    const item = await this.prisma.hopDong.findFirst({
+      where: { hopDongId: id, isDelete: false },
+    });
+    if (!item) throw new NotFoundException(`HopDong với id ${id} không tồn tại`);
+    return item;
+  }
+
+ 
+  async cancelContract(id: string) {
+    const existingHopDong = await this.findOne(id);
+    // Chỉ cho phép hủy khi hợp đồng đang ở trạng thái chờ hiệu lực (0)
+    if (existingHopDong.trangThai !== 0) {
+      throw new BadRequestException(
+        'Chỉ có thể hủy các hợp đồng đang ở trạng thái chờ hiệu lực!',
+      );
+    }
+
+    const { phongId, idnt } = existingHopDong;
+
+    //KIỂM TRA CÔNG NỢ TẠP HÓA CỦA NGƯỜI THUÊ (Tiền mua hàng thực tế thì bắt buộc phải trả)
+    const hoaDonTapHoaList = await this.prisma.hoaDonTapHoa.findMany({
+      where: {
+        idnt: idnt,
+        isDelete: false,
+      },
+      include: {
+        phieuThuHdTh: {
+          where: { isDelete: false },
+        },
+      },
+    });
+    const coNoTapHoa = hoaDonTapHoaList.some((hd) => {
+      const tongTien = Number(hd.tongTien ?? 0);
+      const daThu = hd.phieuThuHdTh.reduce(
+        (sum, pt) => sum + Number(pt.soTien ?? 0),
+        0,
+      );
+      const conNo = Math.max(tongTien - daThu, 0);
+      return conNo > 0;
+    });
+
+    if (coNoTapHoa) {
+      throw new BadRequestException(
+        'Người thuê này vẫn còn nợ hóa đơn tạp hóa chưa thanh toán. Vui lòng thanh toán hết trước khi hủy hợp đồng!',
+      );
+    }
+
+    return await this.prisma.$transaction(async (prisma) => {
+      //Xóa mềm hóa đơn hợp đồng đó nếu mà chủ trọ có lỡ tạo hóa đơn cho phòng chưa hiệu lực
+      await prisma.hoaDonPhong.updateMany({
+        where: {
+          hopDongId: id,
+          isDelete: false,
+        },
+        data: {
+          isDelete: true,
+        },
+      });
+      //Cập nhật hợp đồng thành đã xóa mềm (isDelete = true)
+      const hopDongBiHuy = await prisma.hopDong.update({
+        where: { hopDongId: id },
+        data: { isDelete: true },
+      });
+
+      //ktra Xem phòng này còn bất kỳ hợp đồng nào khác không
+      const conHopDongKhacCuaPhong = await prisma.hopDong.findFirst({
+        where: {
+          phongId: phongId,
+          hopDongId: { not: id }, // Loại trừ hợp đồng đang hủy
+          isDelete: false,
+          trangThai: { in: [0, 1] }, // Vẫn còn hợp đồng 0 hoặc 1
+        },
+      });
+
+      // Nếu hoàn toàn không còn hợp đồng nào khác dính tới phòng này -> reset trạng thái phòng về 0 (Trống)
+      if (!conHopDongKhacCuaPhong) {
+        await prisma.phong.update({
+          where: { phongId: phongId },
+          data: { trangThai: 0 },
+        });
+      }
+
+      // ktra Xem người thuê này còn dính hợp đồng nào khác (0 hoặc 1) ở phòng khác không?
+      const conHopDongKhacCuaNguoiThue = await prisma.hopDong.findFirst({
+        where: {
+          idnt: idnt,
+          hopDongId: { not: id },
+          isDelete: false,
+          trangThai: { in: [0, 1] },
+        },
+      });
+
+      // Nếu người thuê không còn ở phòng nào khác reset trạng thái người thuê về 0 (Chưa thuê)
+      if (!conHopDongKhacCuaNguoiThue) {
+        await prisma.nguoiThue.update({
+          where: { idnt: idnt },
+          data: { trangThai: 0 }, 
+        });
+      }
+      return {
+        success: true,
+        message: 'Hủy hợp đồng chờ hiệu lực thành công và đã cập nhật lại trạng thái phòng/người thuê!',
+        data: hopDongBiHuy,
+      };
+    });
+  }
+
+  //Kết thúc hợp đồng
+ async terminateContract(id: string) {
+    const existingHopDong = await this.findOne(id);
+
+    // Chỉ cho phép kết thúc khi hợp đồng đang ở trạng thái hoạt động (1)
+    if (existingHopDong.trangThai !== 1) {
+      throw new BadRequestException(
+        'Chỉ có thể kết thúc các hợp đồng đang ở trạng thái hoạt động!',
+      );
+    }
+
+    const { phongId, idnt } = existingHopDong;
+
+    //KIỂM TRA NỢ HÓA ĐƠN PHÒNG
+    const hoaDonPhongChuaTra = await this.prisma.hoaDonPhong.findFirst({
+      where: {
+        hopDongId: id, // Kiểm tra theo hợp đồng này
+        trangThai: { not: 2 }, // 2 là Đã thanh toán 
+        isDelete: false,
+      },
+    });
+
+    if (hoaDonPhongChuaTra) {
+      throw new BadRequestException(
+        'Hợp đồng này vẫn còn hóa đơn tiền phòng chưa thanh toán xong. Không thể kết thúc!',
+      );
+    }
+
+    //KIỂM TRA NỢ HÓA ĐƠN TẠP HÓA CỦA NGƯỜI THUÊ
+    const hoaDonTapHoaList = await this.prisma.hoaDonTapHoa.findMany({
+      where: {
+        idnt: idnt,
+        isDelete: false,
+      },
+      include: {
+        phieuThuHdTh: {
+          where: { isDelete: false },
+        },
+      },
+    });
+
+    // Tính toán công nợ tạp hóa (conNo > 0)
+    const coNoTapHoa = hoaDonTapHoaList.some((hd) => {
+      const tongTien = Number(hd.tongTien ?? 0);
+      const daThu = hd.phieuThuHdTh.reduce(
+        (sum, pt) => sum + Number(pt.soTien ?? 0),
+        0,
+      );
+      const conNo = Math.max(tongTien - daThu, 0);
+      return conNo > 0;
+    });
+
+    if (coNoTapHoa) {
+      throw new BadRequestException(
+        'Người thuê này vẫn còn công nợ hóa đơn tạp hóa chưa thanh toán. Vui lòng thanh toán hết trước khi kết thúc hợp đồng!',
+      );
+    }
+
+   const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+    const homNay = new Date(`${year}-${month}-${day}T00:00:00.000Z`);
+    return await this.prisma.$transaction(async (prisma) => {
+      //Cập nhật hợp đồng: Chuyển trạng thái thành 2 (Đã kết thúc) và chốt ngày hết hạn là ngày hiện tại
+      const updatedHopDong = await prisma.hopDong.update({
+        where: { hopDongId: id },
+        data: {
+          trangThai: 2,
+          ngayHetHan: homNay, // Chốt đúng ngày thực tế trả phòng
+        },
+      });
+
+      //KIỂM TRA PHÒNG: Xem phòng này còn hợp đồng nào khác [0, 1] không
+      const conHopDongKhacCuaPhong = await prisma.hopDong.findFirst({
+        where: {
+          phongId: phongId,
+          hopDongId: { not: id },
+          isDelete: false,
+          trangThai: { in: [0, 1] },
+        },
+      });
+
+      // Nếu không còn -> Trả phòng về trống (trangThai = 0)
+      if (!conHopDongKhacCuaPhong) {
+        await prisma.phong.update({
+          where: { phongId: phongId },
+          data: { trangThai: 0 },
+        });
+      }
+
+      //KIỂM TRA NGƯỜI THUÊ: Xem còn dính hợp đồng [0, 1] nào khác ở phòng khác không
+      const conHopDongKhacCuaNguoiThue = await prisma.hopDong.findFirst({
+        where: {
+          idnt: idnt,
+          hopDongId: { not: id },
+          isDelete: false,
+          trangThai: { in: [0, 1] },
+        },
+      });
+
+      // Nếu không còn -> Đưa trạng thái người thuê về 0 (Chưa thuê)
+      if (!conHopDongKhacCuaNguoiThue) {
+        await prisma.nguoiThue.update({
+          where: { idnt: idnt },
+          data: { trangThai: 0 },
+        });
+      }
+      return {
+        success: true,
+        message: 'Kết thúc hợp đồng thành công, đã chốt ngày thực tế, kiểm tra sạch sẽ công nợ và giải phóng phòng!',
+        data: updatedHopDong,
+      };
+    });
+  }
+
+  @Cron('0 0 * * *')
+  async handleKichHoatContract(){
+    const homNay = new Date();
+    homNay.setHours(0, 0, 0, 0);
+    try{
+      const dsHopDongChuahieuluc = await this.prisma.hopDong.findMany({
+        where: {
+          trangThai: 0,
+          isDelete: false,
+          ngayKy: {
+            lte: homNay,
+          },
+        },
+      });
+
+      if (dsHopDongChuahieuluc.length === 0) return;
+      for (const hd of dsHopDongChuahieuluc) {
+        await this.prisma.$transaction(async (prisma) => {
+          // Chuyển trạng thái hợp đồng thành 1
+          await prisma.hopDong.update({
+            where: { hopDongId: hd.hopDongId },
+            data: { trangThai: 1 },
+          });
+        });
+      }
+      console.log('Kích hoạt hợp đồng tự động thành công!');
+    }catch(e){
+        console.error('Lỗi khi chạy cron job kích hoạt hợp đồng:', e);
+    }
+  }
+
+ //--------------------------------------------------------------------------------
   async search(req: SearchHopDongDto) {
     const { ma, limit = 10, offset = 0, sortBy = 'hopDongId', sort = 'desc' } = req;
     const where: any = { isDelete: false };

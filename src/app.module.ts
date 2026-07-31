@@ -26,6 +26,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { ThongKeModule } from './thong-ke/thong-ke.module';
 import { LichSuMuaThietBiModule } from './lich-su-mua-thiet-bi/lich-su-mua-thiet-bi.module';
 import { CauHinhGiaModule } from './cau-hinh-gia/cau-hinh-gia.module';
+import { PhieuThuDienNuocModule } from './phieu-thu-dien-nuoc/phieu-thu-dien-nuoc.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { CauHinhGiaModule } from './cau-hinh-gia/cau-hinh-gia.module';
     ThongKeModule,
     LichSuMuaThietBiModule,
     CauHinhGiaModule,
+    PhieuThuDienNuocModule,
   ],
 })
 export class AppModule {}

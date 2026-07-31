@@ -136,25 +136,63 @@ export class PhongService {
       );
     }
 
-    return dsLapRap.map((lr) => {
-      const phong = lr.phong as any;
-
-      let giahientai = 0;
-
-      if (phong.HopDong && phong.HopDong.length > 0) {
-        giahientai = phong.HopDong.reduce(
-          (sum, hd) => sum + (hd.giaPhongThucTe || 0),
-          0,
-        );
-      } else {
-        giahientai = phong.loaiPhong?.giaTien || 0;
-      }
-
-      return {
-        ...phong,
-        giahientai,
-      };
+    const dsSuaChua = await this.prisma.suaChua.findMany({
+      where: {
+        thietBiId,
+        isDelete: false,
+      },
+      include: { hoadonsuachua: true },
     });
+
+    const thongKeTheoPhong = new Map<number, { dangSua: number; hong: number }>();
+
+    for (const sc of dsSuaChua) {
+      if (sc.phongId == null) continue;
+
+      const hoaDon =
+        sc.hoadonsuachua && !sc.hoadonsuachua.isDelete ? sc.hoadonsuachua : null;
+
+      const current = thongKeTheoPhong.get(sc.phongId) ?? { dangSua: 0, hong: 0 };
+
+      if (hoaDon?.trangThai === 3) {
+        current.hong += 1;
+      } else if (!hoaDon || hoaDon.trangThai === 0) {
+        current.dangSua += 1;
+      }
+      // trangThai === 1 hoặc 2: không tính
+
+      thongKeTheoPhong.set(sc.phongId, current);
+    }
+
+    const result = dsLapRap
+      .filter((lr) => {
+        if (lr.phongId == null) return false;
+
+        const thongKe = thongKeTheoPhong.get(lr.phongId) ?? { dangSua: 0, hong: 0 };
+        const soLuongLapRap = lr.soLuong ?? 0;
+
+        return soLuongLapRap > thongKe.dangSua + thongKe.hong;
+      })
+      .map((lr) => {
+        const phong = lr.phong as any;
+
+        let giahientai = 0;
+        if (phong.HopDong && phong.HopDong.length > 0) {
+          giahientai = phong.HopDong.reduce(
+            (sum: number, hd: any) => sum + (hd.giaPhongThucTe || 0),
+            0,
+          );
+        } else {
+          giahientai = phong.loaiPhong?.giaTien || 0;
+        }
+
+        return {
+          ...phong,
+          giahientai,
+        };
+      });
+
+    return result;
   }
 
   async remove(id: number) {
@@ -163,7 +201,7 @@ export class PhongService {
       where: {
         phongId: id,
         isDelete: false,
-        trangThai: { not: 2 }, 
+        trangThai: { not: 2 },
       },
     });
     if (hopDongConHieuLuc) {

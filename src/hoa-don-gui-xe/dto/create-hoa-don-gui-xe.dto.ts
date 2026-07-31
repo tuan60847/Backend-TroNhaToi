@@ -16,7 +16,11 @@ export class CreateHoaDonGuiXeDto {
   @ApiPropertyOptional({ description: 'Biển số xe' })
   @IsOptional()
   @IsString()
-  bienSo?: string;
+  bienSo?: string;  
+
+  @ApiProperty({ description: 'ID phương tiện (idPT)' })
+  @IsNumber()
+  idPT: number;
 
 }
 

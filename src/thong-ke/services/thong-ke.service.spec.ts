@@ -2,19 +2,12 @@ import { ThongKeService } from "./thong-ke.service";
 
 describe("ThongKeService snapshot", () => {
   const createService = () => {
-    const prisma: any = {
-      thongKeRevision: {
-        findUnique: jest.fn().mockResolvedValue({ phienBan: 0 }),
-        upsert: jest.fn().mockResolvedValue({ phienBan: 0 }),
-        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
-      },
+    const prisma = {
       thongKeSnapshot: {
         findUnique: jest.fn(),
         upsert: jest.fn(),
-        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
     };
-    prisma.$transaction = jest.fn(async (callback) => callback(prisma));
 
     return {
       prisma,
@@ -22,7 +15,7 @@ describe("ThongKeService snapshot", () => {
     };
   };
 
-  it("trả snapshot hiện có mà không tính lại", async () => {
+  it("trả snapshot còn hạn mà không tính lại", async () => {
     const { prisma, service } = createService();
     const duLieu = {
       doanhThu: {
@@ -36,14 +29,11 @@ describe("ThongKeService snapshot", () => {
 
     prisma.thongKeSnapshot.findUnique.mockResolvedValue({
       duLieu,
-      phienBan: 0,
+      hetHanLuc: new Date(Date.now() + 60_000),
     });
 
     const tinhThongKe = jest.fn();
     (service as any).tinhThongKe = tinhThongKe;
-    (service as any).refreshTimeDependentData = jest
-      .fn()
-      .mockResolvedValue(duLieu);
 
     await expect(
       service.getThongKe({
@@ -58,9 +48,6 @@ describe("ThongKeService snapshot", () => {
       },
     });
     expect(tinhThongKe).not.toHaveBeenCalled();
-    expect((service as any).refreshTimeDependentData).toHaveBeenCalledWith(
-      duLieu,
-    );
     expect(prisma.thongKeSnapshot.upsert).not.toHaveBeenCalled();
   });
 
@@ -105,17 +92,41 @@ describe("ThongKeService snapshot", () => {
           kyThongKe: "2026",
           nam: 2026,
           thang: null,
-          phienBan: 0,
           duLieu: result,
         }),
         update: expect.objectContaining({
           nam: 2026,
           thang: null,
-          phienBan: 0,
           duLieu: result,
         }),
       }),
     );
+  });
+
+  it("tính lại khi snapshot đã hết hạn", async () => {
+    const { prisma, service } = createService();
+
+    prisma.thongKeSnapshot.findUnique.mockResolvedValue({
+      duLieu: {
+        cu: true,
+      },
+      hetHanLuc: new Date(Date.now() - 1),
+    });
+    prisma.thongKeSnapshot.upsert.mockResolvedValue({});
+    (service as any).tinhThongKe = jest.fn().mockResolvedValue({
+      moi: true,
+    });
+
+    await expect(
+      service.getThongKe({
+        nam: 2026,
+        thang: 12,
+      }),
+    ).resolves.toEqual({
+      moi: true,
+    });
+
+    expect(prisma.thongKeSnapshot.upsert).toHaveBeenCalled();
   });
 
   it("tính lại snapshot cũ chưa có dữ liệu Top", async () => {
@@ -123,6 +134,7 @@ describe("ThongKeService snapshot", () => {
 
     prisma.thongKeSnapshot.findUnique.mockResolvedValue({
       duLieu: { doanhThu: {} },
+      hetHanLuc: new Date(Date.now() + 60_000),
     });
     prisma.thongKeSnapshot.upsert.mockResolvedValue({});
     (service as any).tinhThongKe = jest.fn().mockResolvedValue({
@@ -136,106 +148,6 @@ describe("ThongKeService snapshot", () => {
 
     expect((service as any).tinhThongKe).toHaveBeenCalled();
     expect(prisma.thongKeSnapshot.upsert).toHaveBeenCalled();
-  });
-
-  it("không lưu kết quả cũ nếu revision đổi trong lúc tính", async () => {
-    const { prisma, service } = createService();
-
-    prisma.thongKeRevision.findUnique
-      .mockResolvedValueOnce({ phienBan: 0 })
-      .mockResolvedValueOnce({ phienBan: 1 });
-    prisma.thongKeRevision.updateMany
-      .mockResolvedValueOnce({ count: 0 })
-      .mockResolvedValueOnce({ count: 1 });
-    prisma.thongKeSnapshot.findUnique.mockResolvedValue(null);
-    prisma.thongKeSnapshot.upsert.mockResolvedValue({});
-    (service as any).tinhThongKe = jest
-      .fn()
-      .mockResolvedValueOnce({
-        topPhong: [],
-        topCongNo: [],
-        topHangHoa: [],
-        topThietBiSua: [],
-        marker: "cu",
-      })
-      .mockResolvedValueOnce({
-        topPhong: [],
-        topCongNo: [],
-        topHangHoa: [],
-        topThietBiSua: [],
-        marker: "moi",
-      });
-
-    await expect(service.getThongKe({ nam: 2026 })).resolves.toEqual(
-      expect.objectContaining({ marker: "moi" }),
-    );
-
-    expect((service as any).tinhThongKe).toHaveBeenCalledTimes(2);
-    expect(prisma.thongKeSnapshot.upsert).toHaveBeenCalledTimes(1);
-    expect(prisma.thongKeSnapshot.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        create: expect.objectContaining({ phienBan: 1 }),
-        update: expect.objectContaining({ phienBan: 1 }),
-      }),
-    );
-  });
-
-  it("xóa snapshot cũ khi khởi tạo revision lần đầu", async () => {
-    const { prisma, service } = createService();
-    const oldSnapshot = {
-      phienBan: 0,
-      duLieu: {
-        topPhong: [],
-        topCongNo: [],
-        topHangHoa: [],
-        topThietBiSua: [],
-        marker: "cu",
-      },
-    };
-
-    prisma.thongKeRevision.findUnique.mockResolvedValue(null);
-    prisma.thongKeRevision.upsert.mockResolvedValue({ phienBan: 0 });
-    prisma.thongKeSnapshot.findUnique.mockResolvedValue(oldSnapshot);
-    prisma.thongKeSnapshot.upsert.mockResolvedValue({});
-    (service as any).tinhThongKe = jest.fn().mockResolvedValue({
-      topPhong: [],
-      topCongNo: [],
-      topHangHoa: [],
-      topThietBiSua: [],
-      marker: "moi",
-    });
-
-    await expect(service.getThongKe({ nam: 2026 })).resolves.toEqual(
-      expect.objectContaining({ marker: "moi" }),
-    );
-
-    expect(prisma.thongKeSnapshot.deleteMany).toHaveBeenCalledTimes(1);
-    expect((service as any).tinhThongKe).toHaveBeenCalledTimes(1);
-  });
-
-  it("tính lại các phần phụ thuộc ngày khi trả snapshot", async () => {
-    const { service } = createService();
-    (service as any).getThongKePhong = jest.fn().mockResolvedValue({
-      phongDangThue: 2,
-    });
-    (service as any).getThongKeNguoiThue = jest.fn().mockResolvedValue({
-      hopDongSapHet: 1,
-    });
-    (service as any).getHopDongSapHet = jest.fn().mockResolvedValue([
-      { hopDongId: "HD001" },
-    ]);
-
-    await expect(
-      (service as any).refreshTimeDependentData({
-        doanhThu: { tongDoanhThu: 1000 },
-        phong: { phongDangThue: 0 },
-      }),
-    ).resolves.toEqual({
-      doanhThu: { tongDoanhThu: 1000 },
-      phong: { phongDangThue: 2 },
-      nguoiThue: { hopDongSapHet: 1 },
-      hopDongSapHet: [{ hopDongId: "HD001" }],
-    });
   });
 });
 

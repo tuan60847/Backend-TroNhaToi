@@ -10,7 +10,7 @@ import { FileFieldsInterceptor, FilesInterceptor } from '@nestjs/platform-expres
 
 @ApiTags('Điện Nước')
 @ApiBearerAuth()
-//@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard)
 @Controller('dien-nuoc')
 export class DienNuocController {
   constructor(private readonly dienNuocService: DienNuocService,
